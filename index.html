@@ -244,12 +244,12 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 <main id="scr-set" class="wrap hidden">
   <div class="card">
     <h3>तौल की गोलाई / Rounding</h3>
-    <p>तराज़ू पर जितने ग्राम देना आसान हो, उतना गोल कर दें।</p>
+    <p>तराज़ू पर जितने ग्राम देना आसान हो, उतना चुनें। हमेशा <b>नीचे</b> की तरफ़ गोल होगा — ग्राहक को पैसे से ज़्यादा तौल कभी नहीं जाएगी।</p>
     <select id="roundSel" class="field">
-      <option value="1">1 ग्राम तक सटीक</option>
-      <option value="5">5 ग्राम में गोल</option>
-      <option value="10">10 ग्राम में गोल</option>
-      <option value="25">25 ग्राम में गोल</option>
+      <option value="1">1 ग्राम — पूरा ग्राम नीचे</option>
+      <option value="5">5 ग्राम नीचे</option>
+      <option value="10">10 ग्राम नीचे</option>
+      <option value="25">25 ग्राम नीचे</option>
     </select>
   </div>
 
@@ -265,8 +265,8 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 
   <div class="card">
     <h3>क्लाउड सिंक (Firebase)</h3>
-    <p>अपने Firebase प्रोजेक्ट का config यहाँ चिपकाएँ, फिर ईमेल-पासवर्ड से लॉगिन करें। सामान अपने आप दोनों जगह सेव होगा। README में पूरे स्टेप लिखे हैं।</p>
-    <textarea id="fbCfg" class="field" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+    <p>Firebase console से <b>firebaseConfig</b> पूरा कॉपी करके यहाँ चिपका दें — जैसा है वैसा, const और सेमीकोलन समेत। फिर ईमेल-पासवर्ड से लॉगिन करें। README में पूरे स्टेप लिखे हैं।</p>
+    <textarea id="fbCfg" class="field" placeholder="Firebase console से firebaseConfig जैसा है वैसा चिपका दें"></textarea>
     <button class="btn full alt" id="fbSave" style="margin-top:10px">Config सेव करें</button>
     <div id="fbAuth" class="hidden" style="margin-top:12px">
       <input id="fbEmail" class="field" type="email" placeholder="ईमेल" autocomplete="username" style="margin-bottom:8px">
@@ -379,7 +379,17 @@ function qtyToAmount(it, qty) {
   const rows = s.map(sl => ({ slab: sl, amount: (qty / U) * sl.rate, ok: qty >= sl.minQ - 1e-9 }));
   return { chosen: rows.find(r => r.ok) || rows[rows.length - 1], rows };
 }
-const roundQty = (q, step) => step > 1 ? Math.round(q / step) * step : Math.round(q);
+// Always round DOWN. Rounding to the nearest step hands the customer weight
+// they did not pay for; over a day of sales that leaks real money.
+// Guard: if flooring to the step would give 0 (a tiny sale against a coarse
+// step, e.g. 14 g against a 25 g step), fall back to whole grams instead of
+// telling the shopkeeper to give nothing.
+const roundQty = (q, step) => {
+  if (!(q > 0)) return 0;
+  if (step <= 1) return Math.max(1, Math.floor(q));
+  const r = Math.floor(q / step) * step;
+  return r >= step ? r : Math.max(1, Math.floor(q));
+};
 const kgRate = it => it.slabs.length ? it.slabs[0].rate : 0;
 const money = n => {
   const r = Math.round(n * 2) / 2;                       // nearest 50 paise
@@ -459,6 +469,14 @@ function selectItem(it) {
   $('chipRate').textContent = money(kgRate(it)) + rateLabel(it);
   renderCalc(); $('val').focus();
 }
+// same as selectItem but without stealing focus or clearing the search box —
+// used when a remote edit updates the item that is already on screen
+function selectItemQuiet(it) {
+  S.sel = it;
+  $('chipHi').textContent = it.nameHi || it.nameEn;
+  $('chipEn').textContent = it.nameEn || '';
+  $('chipRate').textContent = money(kgRate(it)) + rateLabel(it);
+}
 function setMode(m) {
   S.mode = m;
   $('mAmt').setAttribute('aria-pressed', m === 'amt');
@@ -492,7 +510,7 @@ function renderCalc() {
     $('outNum').innerHTML = esc(t.n) + '<u>' + t.u + '</u>';
     $('outSub').textContent = it.unit === 'pcs'
       ? 'सटीक ' + (Math.round(r.chosen.qty * 100) / 100) + ' नग'
-      : 'सटीक ' + (Math.round(r.chosen.qty * 10) / 10) + ' g' + (step > 1 ? ' · ' + step + ' g में गोल' : '');
+      : 'सटीक ' + (Math.round(r.chosen.qty * 10) / 10) + ' g' + (step > 1 ? ' · ' + step + ' g नीचे' : '');
     band.innerHTML = `<span>${esc(it.nameHi || it.nameEn)}</span><span>${money(r.chosen.slab.rate)}${rateLabel(it)} रेट</span>`;
     tbl.innerHTML = `<div class="h"><span class="c1">रेट किस पर</span><span class="c2">रेट</span><span class="c3">कितना मिलेगा</span></div>` +
       r.rows.map((row, ix) => {
@@ -755,77 +773,130 @@ async function importJSON(file) {
   } catch (e) { toast('फ़ाइल सही नहीं है'); }
 }
 
-/* ---------------- cloud sync (optional Firestore) ---------------- */
+/* ---------------- cloud sync (optional Firestore, realtime) ----------------
+   Design notes:
+   - One onSnapshot listener per session. Firestore pushes only the documents
+     that changed (docChanges), so an idle phone costs nothing and a rate edit
+     on phone A lands on phone B in about a second.
+   - persistentLocalCache gives us Firestore's own durable write queue. Edits
+     made with no network are held by the SDK and replay on reconnect, across
+     app restarts.
+   - No "last synced at" timestamp anywhere. The old version compared the
+     server's updatedAt against this phone's clock; if the clock ran fast it
+     skipped every later change permanently. The listener has no such window.
+   - updatedAt is still used to settle a genuine conflict (same item edited on
+     two phones). There the later clock wins, which is last-write-wins and is
+     as good as it gets without a server.
+--------------------------------------------------------------------------- */
 const Cloud = (() => {
-  let app = null, auth = null, fs = null, user = null, cfg = null, timer = null, busy = false;
-  const M = {};   // firebase modular fns
+  let app = null, auth = null, fs = null, user = null, unsub = null, timer = null;
+  let isLive = false, cached = true;
+  const M = {};                 // firebase modular fns
+  const inflight = new Set();   // ids currently being written, so we never double-send
 
   function status(txt, cls) { $('syncTxt').textContent = txt; $('syncDot').className = 'dot' + (cls ? ' ' + cls : ''); }
 
+  function refresh() {
+    if (!user) return status('लोकल', '');
+    const waiting = S.items.filter(x => x.dirty).length;
+    if (!navigator.onLine) return status(waiting ? 'ऑफ़लाइन · ' + waiting : 'ऑफ़लाइन', 'err');
+    if (waiting) return status('भेज रहे… ' + waiting, 'on');
+    status(isLive && !cached ? 'क्लाउड · लाइव' : 'क्लाउड', 'on');
+  }
+
   async function boot(c) {
-    cfg = c;
     const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
     const [a, au, fst] = await Promise.all([
       import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')
     ]);
     Object.assign(M, a, au, fst);
-    app = M.initializeApp(cfg);
+    app = (M.getApps && M.getApps().length) ? M.getApp() : M.initializeApp(c);
     auth = M.getAuth(app);
-    fs = M.getFirestore(app);
+    try {
+      fs = M.initializeFirestore(app, {
+        localCache: M.persistentLocalCache({ tabManager: M.persistentMultipleTabManager() })
+      });
+    } catch (e) {                       // already initialised, or storage blocked
+      fs = M.getFirestore(app);
+    }
     M.onAuthStateChanged(auth, u => {
-      user = u;
-      $('fbMsg').textContent = u ? 'लॉगिन: ' + u.email : 'लॉगिन नहीं है।';
-      status(u ? 'क्लाउड' : 'लोकल', u ? 'on' : '');
-      if (u) sync();
+      user = u; stopListen();
+      if (u) { $('fbMsg').textContent = 'लॉगिन: ' + u.email; listen(); pushDirty(); }
+      else { $('fbMsg').textContent = 'लॉगिन नहीं है।'; }
+      refresh();
     });
     $('fbAuth').classList.remove('hidden');
   }
+
+  const col = () => M.collection(fs, 'users', user.uid, 'items');
+
+  function stopListen() { if (unsub) { try { unsub(); } catch (e) {} unsub = null; } isLive = false; }
+
+  /* realtime: attaches on login and on app open, stays attached */
+  function listen() {
+    if (!fs || !user || unsub) return;
+    unsub = M.onSnapshot(col(),
+      snap => {
+        isLive = true; cached = snap.metadata.fromCache;
+        let n = 0;
+        snap.docChanges().forEach(ch => {
+          const r = ch.doc.data();
+          if (!r || typeof r.updatedAt !== 'number') return;
+          const it = {
+            id: ch.doc.id, nameHi: r.nameHi || '', nameEn: r.nameEn || '', alias: r.alias || '',
+            unit: r.unit === 'pcs' ? 'pcs' : 'kg', slabs: normSlabs(r.slabs),
+            deleted: !!r.deleted, updatedAt: r.updatedAt, dirty: 0
+          };
+          if (!it.slabs.length) return;
+          const ix = S.items.findIndex(x => x.id === it.id);
+          if (ix < 0) { S.items.push(it); DB.put(it); n++; }
+          else if (S.items[ix].updatedAt < it.updatedAt) { S.items[ix] = it; DB.put(it); n++; }
+          // local copy is newer or equal -> keep it; our own push will win
+        });
+        if (n) {
+          renderItems();
+          if (S.sel) {
+            const cur = S.items.find(i => i.id === S.sel.id);
+            if (!cur || cur.deleted) clearSel(); else selectItemQuiet(cur);
+          }
+          renderCalc();
+          if (!snap.metadata.hasPendingWrites) toast(n + ' अपडेट आए');
+        }
+        refresh();
+      },
+      err => {
+        isLive = false; status('सिंक रुका', 'err');
+        $('fbMsg').textContent = 'सिंक नहीं हुआ: ' + (err.code || err.message) +
+          (String(err.code).includes('permission') ? ' — Firestore Rules पब्लिश करें' : '');
+      });
+  }
+
+  /* push: never awaited. Offline, setDoc does not settle until the SDK
+     reaches the server, so awaiting it would freeze the save button. */
+  function pushDirty() {
+    if (!fs || !user) return refresh();
+    S.items.filter(x => x.dirty && !inflight.has(x.id)).forEach(it => {
+      inflight.add(it.id);
+      const { dirty, ...doc } = it;
+      M.setDoc(M.doc(col(), it.id), doc)
+        .then(() => { it.dirty = 0; DB.put(it); })
+        .catch(e => { $('fbMsg').textContent = 'भेजा नहीं जा सका: ' + (e.code || e.message); })
+        .finally(() => { inflight.delete(it.id); refresh(); });
+    });
+    refresh();
+  }
+
+  function pushSoon() { clearTimeout(timer); timer = setTimeout(pushDirty, 800); }
+  function sync() { if (!user) return toast('पहले लॉगिन करें'); listen(); pushDirty(); toast('सिंक चालू है'); }
 
   async function login(email, pass) {
     if (!auth) return toast('पहले config सेव करें');
     try { await M.signInWithEmailAndPassword(auth, email, pass); toast('लॉगिन हो गया'); }
     catch (e) { $('fbMsg').textContent = 'लॉगिन नहीं हुआ: ' + (e.code || e.message); }
   }
-  async function logout() { if (auth) { await M.signOut(auth); toast('लॉगआउट'); } }
+  async function logout() { stopListen(); if (auth) { await M.signOut(auth); toast('लॉगआउट'); } }
 
-  function pushSoon() { clearTimeout(timer); timer = setTimeout(sync, 1500); }
-
-  async function sync() {
-    if (!fs || !user || busy) return;
-    if (!navigator.onLine) { status('ऑफ़लाइन', 'err'); return; }
-    busy = true; status('सिंक…', 'on');
-    try {
-      const col = M.collection(fs, 'users', user.uid, 'items');
-      // push local changes
-      for (const it of S.items.filter(x => x.dirty)) {
-        const { dirty, ...doc } = it;
-        await M.setDoc(M.doc(col, it.id), doc);
-        it.dirty = 0; await DB.put(it);
-      }
-      // pull remote changes
-      const since = await DB.get('lastSync', 0);
-      const snap = await M.getDocs(M.query(col, M.where('updatedAt', '>', since)));
-      let n = 0;
-      snap.forEach(d => {
-        const r = d.data(); if (!r || !r.updatedAt) return;
-        const it = { id: d.id, nameHi: r.nameHi || '', nameEn: r.nameEn || '', alias: r.alias || '',
-          unit: r.unit === 'pcs' ? 'pcs' : 'kg', slabs: normSlabs(r.slabs), deleted: !!r.deleted,
-          updatedAt: r.updatedAt, dirty: 0 };
-        const ix = S.items.findIndex(x => x.id === it.id);
-        if (ix < 0) { S.items.push(it); DB.put(it); n++; }
-        else if (S.items[ix].updatedAt < it.updatedAt) { S.items[ix] = it; DB.put(it); n++; }
-      });
-      await DB.set('lastSync', Date.now());
-      if (n) { renderItems(); renderCalc(); }
-      status('क्लाउड', 'on');
-      $('fbMsg').textContent = 'आख़िरी सिंक: अभी' + (n ? ' · ' + n + ' अपडेट आए' : '');
-    } catch (e) {
-      status('सिंक रुका', 'err');
-      $('fbMsg').textContent = 'सिंक नहीं हुआ: ' + (e.code || e.message);
-    } finally { busy = false; }
-  }
-
-  return { boot, login, logout, sync, pushSoon, status, get on() { return !!user; } };
+  return { boot, login, logout, sync, pushSoon, status, refresh, get on() { return !!user; } };
 })();
 
 /* ---------------- screens ---------------- */
@@ -889,25 +960,46 @@ $('expBtn').onclick = exportJSON;
 $('impBtn').onclick = () => $('impFile').click();
 $('impFile').addEventListener('change', e => { if (e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ''; });
 $('wipe').onclick = async () => {
-  if (!confirm('इस फ़ोन का सारा सामान मिट जाएगा। पहले बैकअप निकाल लें। मिटाना है?')) return;
-  await DB.clear(); await DB.set('lastSync', 0); S.items = []; clearSel(); renderItems(); toast('मिटा दिया');
+  const msg = Cloud.on
+    ? 'इस फ़ोन का सारा सामान मिट जाएगा — लेकिन क्लाउड सिंक चालू है, इसलिए सब वापस आ जाएगा। पूरा मिटाना हो तो पहले लॉगआउट करें। पहले बैकअप निकाल लें। मिटाना है?'
+    : 'इस फ़ोन का सारा सामान मिट जाएगा। पहले बैकअप निकाल लें। मिटाना है?';
+  if (!confirm(msg)) return;
+  await DB.clear(); S.items = []; clearSel(); renderItems(); Cloud.refresh(); toast('मिटा दिया');
 };
+/* The Firebase console hands out JavaScript, not JSON: a leading comment,
+   `const firebaseConfig = {`, unquoted keys, a trailing semicolon. Accept that
+   verbatim rather than making the shopkeeper hand-convert it. */
+function parseFbConfig(raw) {
+  let t = String(raw).trim();
+  t = t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');   // comments
+  t = t.replace(/^[^{]*?(?=\{)/, '');                                    // const x = ... up to the brace
+  t = t.replace(/;[\s]*$/, '').trim();                                    // trailing semicolon
+  const open = t.indexOf('{'), close = t.lastIndexOf('}');
+  if (open < 0 || close < open) throw new Error('no object');
+  t = t.slice(open, close + 1);
+  t = t.replace(/'/g, '"');                                              // single -> double quotes
+  t = t.replace(/,(\s*[}\]])/g, '$1');                                    // trailing commas
+  t = t.replace(/([{,]\s*)([A-Za-z_$][\w$]*)(\s*:)/g, '$1"$2"$3');        // bare keys
+  return JSON.parse(t);
+}
+
 $('fbSave').onclick = async () => {
   const raw = $('fbCfg').value.trim();
   if (!raw) return toast('config खाली है');
   try {
-    const c = JSON.parse(raw);
+    const c = parseFbConfig(raw);
     if (!c.apiKey || !c.projectId) throw 0;
+    $('fbCfg').value = JSON.stringify(c, null, 1);
     await DB.set('fbCfg', c);
     $('fbMsg').textContent = 'Config सेव हो गया। अब ईमेल-पासवर्ड से लॉगिन करें।';
     Cloud.boot(c).catch(() => $('fbMsg').textContent = 'Firebase लोड नहीं हुआ — इंटरनेट जाँचें।');
-  } catch (e) { toast('config सही JSON नहीं है'); }
+  } catch (e) { toast('config पढ़ा नहीं गया — Firebase से पूरा firebaseConfig कॉपी करें'); }
 };
 $('fbLogin').onclick = () => Cloud.login($('fbEmail').value.trim(), $('fbPass').value);
 $('fbOut').onclick = () => Cloud.logout();
 $('fbSync').onclick = () => Cloud.sync();
-window.addEventListener('online', () => Cloud.sync());
-window.addEventListener('offline', () => Cloud.status('ऑफ़लाइन', 'err'));
+window.addEventListener('online', () => { Cloud.pushSoon(); Cloud.refresh(); });
+window.addEventListener('offline', () => Cloud.refresh());
 
 /* ---------------- start ---------------- */
 (async function init() {

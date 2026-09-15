@@ -1,5 +1,5 @@
 /* अपनी हट्टी — app shell cache. Bump VERSION after every edit to index.html. */
-const VERSION = 'ah-v1';
+const VERSION = 'ah-v4';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
