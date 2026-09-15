@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E5C3F">
+<title>अपनी हट्टी</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{
+  --paper:#FFFDF7; --ink:#171310; --ink-2:#5B5148; --line:#E3DACB;
+  --mustard:#F2B01E; --mustard-dk:#C98C05;
+  --green:#0E5C3F; --green-lt:#E7F1EC;
+  --red:#C62D1F; --red-lt:#FBEBE9;
+  --tap:56px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Devanagari",sans-serif;
+  font-size:16px; line-height:1.45;
+  font-variant-numeric:tabular-nums;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  overscroll-behavior-y:contain;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+input,select{background:#fff}
+
+/* ---------- header ---------- */
+.top{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;background:var(--green);color:#fff;
+  padding-top:calc(10px + env(safe-area-inset-top));
+}
+.top h1{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em;flex:1}
+.top h1 small{display:block;font-size:11px;font-weight:500;opacity:.75;letter-spacing:.02em}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;opacity:.95}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mustard);flex:none}
+.dot.on{background:#54D18B}
+.dot.err{background:#FF8A7A}
+
+.wrap{max-width:560px;margin:0 auto;padding:14px}
+
+/* ---------- generic bits ---------- */
+.field{width:100%;height:var(--tap);border:1.5px solid var(--line);border-radius:8px;padding:0 14px;font-size:17px}
+.field:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-lt)}
+.lbl{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin:0 0 6px}
+.btn{height:var(--tap);border-radius:8px;padding:0 18px;font-weight:700;font-size:16px;
+  background:var(--green);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn.warn{background:var(--red-lt);color:var(--red)}
+.btn.full{width:100%}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px}
+.muted{color:var(--ink-2);font-size:13px}
+.hidden{display:none !important}
+:focus-visible{outline:3px solid var(--mustard);outline-offset:2px}
+
+/* ---------- item picker ---------- */
+.pick{position:relative}
+.mic{position:absolute;right:6px;top:6px;width:44px;height:44px;border-radius:8px;
+  background:var(--green-lt);font-size:20px;display:flex;align-items:center;justify-content:center}
+.mic.live{background:var(--red-lt);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.mic.live{animation:none}}
+.sugs{border:1.5px solid var(--line);border-top:none;border-radius:0 0 8px 8px;max-height:260px;overflow:auto;background:#fff}
+.sug{display:flex;align-items:baseline;gap:8px;width:100%;text-align:left;padding:13px 14px;border-bottom:1px solid var(--line)}
+.sug:last-child{border-bottom:none}
+.sug b{font-size:16px;font-weight:700}
+.sug span{font-size:13px;color:var(--ink-2);flex:1}
+.sug em{font-style:normal;font-weight:700;color:var(--green)}
+
+.chip{display:flex;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;
+  border:1.5px solid var(--green);border-radius:8px;background:var(--green-lt)}
+.chip b{font-size:18px;font-weight:800}
+.chip .r{margin-left:auto;font-weight:800;color:var(--green)}
+.chip .x{width:34px;height:34px;border-radius:6px;font-size:20px;color:var(--ink-2)}
+
+/* ---------- mode switch ---------- */
+.seg{display:flex;margin:16px 0 10px;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;height:48px;font-weight:700;font-size:15px;background:#fff;color:var(--ink-2)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+
+.amtbox{position:relative}
+.amtbox .cur{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:24px;font-weight:700;color:var(--ink-2)}
+.amtbox input{height:68px;font-size:30px;font-weight:800;padding-left:46px}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.quick button{flex:1 0 auto;min-width:64px;height:44px;border:1.5px solid var(--line);border-radius:8px;background:#fff;font-weight:700}
+
+/* ---------- the readout (hero) ---------- */
+.readout{
+  margin:18px 0 0;border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:#fff;
+}
+.readout .big{
+  padding:22px 18px 16px;text-align:center;
+}
+.readout .give{font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:2px}
+.readout .num{font-size:60px;line-height:1;font-weight:800;letter-spacing:-.035em}
+.readout .num u{text-decoration:none;font-size:26px;font-weight:700;margin-left:6px;letter-spacing:0}
+.readout .sub{margin-top:8px;font-size:14px;color:var(--ink-2)}
+.readout .band{background:var(--mustard);color:#171310;padding:9px 16px;font-size:14px;font-weight:800;
+  display:flex;justify-content:space-between;align-items:center}
+.readout.empty .num{color:var(--line)}
+
+/* ---------- slab table ---------- */
+.slabs{margin-top:14px;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.slabs .h{display:flex;padding:9px 14px;background:#F7F1E4;font-size:12px;font-weight:700;color:var(--ink-2);border-bottom:1.5px solid var(--line)}
+.slabs .r{display:flex;padding:12px 14px;border-bottom:1px solid var(--line);align-items:center}
+.slabs .r:last-child{border-bottom:none}
+.slabs .r.pick{background:var(--green-lt);font-weight:800}
+.slabs .c1{flex:1.3}.slabs .c2{flex:.9;text-align:right}.slabs .c3{flex:1;text-align:right}
+.slabs .no{opacity:.45}
+
+/* ---------- item list ---------- */
+.item{display:flex;align-items:center;gap:12px;padding:14px;border:1.5px solid var(--line);border-radius:8px;background:#fff;margin-bottom:10px}
+.item .nm{flex:1;min-width:0}
+.item .nm b{display:block;font-size:17px;font-weight:700}
+.item .nm span{font-size:13px;color:var(--ink-2)}
+.item .pr{text-align:right}
+.item .pr b{display:block;font-size:19px;font-weight:800;color:var(--green)}
+.item .pr span{font-size:11px;color:var(--ink-2)}
+.item .ed{width:42px;height:42px;border-radius:6px;background:#F7F1E4;font-size:17px}
+.tiers{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tier{font-size:11px;font-weight:700;padding:3px 7px;border-radius:4px;background:#F7F1E4;color:var(--ink-2)}
+
+.empty-state{text-align:center;padding:48px 20px;color:var(--ink-2)}
+.empty-state b{display:block;font-size:17px;color:var(--ink);margin-bottom:6px}
+
+/* ---------- sheet ---------- */
+.sheet{position:fixed;inset:0;z-index:50;background:rgba(23,19,16,.5);display:flex;align-items:flex-end}
+.sheet .in{background:var(--paper);width:100%;max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom))}
+.sheet h2{margin:0 0 14px;font-size:20px;font-weight:800}
+.tierrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.tierrow input{flex:1;min-width:0}
+.tierrow .del{width:44px;height:var(--tap);border-radius:8px;background:var(--red-lt);color:var(--red);font-size:18px;flex:none}
+.tierrow .fix{flex:1;display:flex;align-items:center;height:var(--tap);padding:0 12px;border:1.5px dashed var(--line);border-radius:8px;font-weight:700;color:var(--ink-2);font-size:15px}
+
+/* ---------- scan ---------- */
+.scanrow{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.scanrow input:first-child{flex:2}
+.scanrow input:last-of-type{flex:1}
+.scanrow .rm{width:40px;height:var(--tap);border-radius:8px;background:var(--red-lt);color:var(--red);flex:none}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:12px 0}
+.bar i{display:block;height:100%;background:var(--green);width:0;transition:width .2s}
+
+/* ---------- settings ---------- */
+.card{border:1.5px solid var(--line);border-radius:8px;background:#fff;padding:16px;margin-bottom:12px}
+.card h3{margin:0 0 4px;font-size:16px;font-weight:800}
+.card p{margin:0 0 12px;font-size:13px;color:var(--ink-2)}
+textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
+
+/* ---------- tabs ---------- */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--paper);
+  border-top:1.5px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:11px;font-weight:700;color:var(--ink-2)}
+.tabs button i{font-style:normal;font-size:21px;line-height:1}
+.tabs button[aria-current=page]{color:var(--green)}
+.tabs button[aria-current=page] i{transform:scale(1.08)}
+
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:60;
+  background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:8px;font-size:14px;font-weight:600;
+  max-width:88vw;text-align:center}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>अपनी हट्टी<small>Apni Hatti · दुकान कैलकुलेटर</small></h1>
+  <div class="sync" id="syncBox"><span class="dot" id="syncDot"></span><span id="syncTxt">लोकल</span></div>
+</header>
+
+<!-- ================= CALCULATOR ================= -->
+<main id="scr-calc" class="wrap">
+  <div class="pick">
+    <input id="q" class="field" placeholder="सामान ढूँढें / Search item" autocomplete="off" style="padding-right:56px">
+    <button class="mic" id="mic" title="बोलकर बताएँ">🎤</button>
+    <div class="sugs hidden" id="sugs"></div>
+  </div>
+
+  <div id="chip" class="chip hidden">
+    <div><b id="chipHi"></b><div class="muted" id="chipEn"></div></div>
+    <div class="r" id="chipRate"></div>
+    <button class="x" id="chipX" aria-label="हटाएँ">✕</button>
+  </div>
+
+  <div class="seg" role="group">
+    <button id="mAmt" aria-pressed="true">₹ पैसे से तौल</button>
+    <button id="mQty" aria-pressed="false">⚖ तौल से पैसे</button>
+  </div>
+
+  <div class="amtbox">
+    <span class="cur" id="cur">₹</span>
+    <input id="val" class="field" type="text" inputmode="decimal" placeholder="0">
+  </div>
+  <div class="quick" id="quick"></div>
+
+  <div class="readout empty" id="out">
+    <div class="big">
+      <div class="give" id="outGive">ग्राहक को दें</div>
+      <div class="num" id="outNum">—</div>
+      <div class="sub" id="outSub">ऊपर सामान चुनें और रकम लिखें</div>
+    </div>
+    <div class="band hidden" id="outBand"></div>
+  </div>
+
+  <div class="slabs hidden" id="slabTbl"></div>
+</main>
+
+<!-- ================= ITEMS ================= -->
+<main id="scr-items" class="wrap hidden">
+  <div class="row" style="margin-bottom:12px">
+    <input id="iq" class="field" placeholder="ढूँढें / Search" autocomplete="off" style="flex:1">
+    <button class="btn" id="addNew" style="flex:none">+ नया</button>
+  </div>
+  <div id="itemList"></div>
+</main>
+
+<!-- ================= SCAN ================= -->
+<main id="scr-scan" class="wrap hidden">
+  <div class="card">
+    <h3>रेट लिस्ट की फोटो पढ़ें</h3>
+    <p>छपे हुए रेट बोर्ड या लिस्ट की साफ़ फोटो लें। हर लाइन में सामान का नाम और उसका किलो रेट हो। पढ़ने के बाद आप सब कुछ ठीक कर सकते हैं — बिना जाँचे कुछ सेव नहीं होगा।</p>
+    <input type="file" id="pic" accept="image/*" capture="environment" class="field" style="padding:12px;height:auto">
+    <div class="bar hidden" id="ocrBar"><i></i></div>
+    <div class="muted" id="ocrMsg"></div>
+  </div>
+  <div id="scanEdit" class="hidden">
+    <div class="card">
+      <h3>जाँचें और ठीक करें</h3>
+      <p>ग़लत लाइनें हटाएँ, नाम और रेट सुधारें, फिर सेव करें।</p>
+      <div id="scanRows"></div>
+      <button class="btn full" id="scanSave" style="margin-top:12px">सब सेव करें</button>
+    </div>
+  </div>
+</main>
+
+<!-- ================= SETTINGS ================= -->
+<main id="scr-set" class="wrap hidden">
+  <div class="card">
+    <h3>तौल की गोलाई / Rounding</h3>
+    <p>तराज़ू पर जितने ग्राम देना आसान हो, उतना गोल कर दें।</p>
+    <select id="roundSel" class="field">
+      <option value="1">1 ग्राम तक सटीक</option>
+      <option value="5">5 ग्राम में गोल</option>
+      <option value="10">10 ग्राम में गोल</option>
+      <option value="25">25 ग्राम में गोल</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h3>बैकअप फ़ाइल</h3>
+    <p>बिना इंटरनेट भी चलता है। फ़ाइल को WhatsApp या Google Drive पर रख दें।</p>
+    <div class="row">
+      <button class="btn alt" id="expBtn" style="flex:1">बैकअप निकालें</button>
+      <button class="btn alt" id="impBtn" style="flex:1">बैकअप चढ़ाएँ</button>
+    </div>
+    <input type="file" id="impFile" accept="application/json,.json" class="hidden">
+  </div>
+
+  <div class="card">
+    <h3>क्लाउड सिंक (Firebase)</h3>
+    <p>अपने Firebase प्रोजेक्ट का config यहाँ चिपकाएँ, फिर ईमेल-पासवर्ड से लॉगिन करें। सामान अपने आप दोनों जगह सेव होगा। README में पूरे स्टेप लिखे हैं।</p>
+    <textarea id="fbCfg" class="field" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+    <button class="btn full alt" id="fbSave" style="margin-top:10px">Config सेव करें</button>
+    <div id="fbAuth" class="hidden" style="margin-top:12px">
+      <input id="fbEmail" class="field" type="email" placeholder="ईमेल" autocomplete="username" style="margin-bottom:8px">
+      <input id="fbPass" class="field" type="password" placeholder="पासवर्ड" autocomplete="current-password" style="margin-bottom:10px">
+      <div class="row">
+        <button class="btn" id="fbLogin" style="flex:1">लॉगिन</button>
+        <button class="btn alt" id="fbSync" style="flex:1">अभी सिंक करें</button>
+      </div>
+      <button class="btn warn full" id="fbOut" style="margin-top:8px">लॉगआउट</button>
+    </div>
+    <div class="muted" id="fbMsg" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h3>इस फ़ोन का डेटा</h3>
+    <p id="statTxt"></p>
+    <button class="btn warn full" id="wipe">सब मिटाएँ</button>
+  </div>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button data-t="calc" aria-current="page"><i>🧮</i>गणना</button>
+  <button data-t="items"><i>📋</i>सामान</button>
+  <button data-t="scan"><i>📷</i>स्कैन</button>
+  <button data-t="set"><i>⚙️</i>सेटिंग</button>
+</nav>
+
+<div id="sheet"></div>
+
+<script>
+'use strict';
+/* =========================================================================
+   अपनी हट्टी — offline-first shop calculator
+   Storage: IndexedDB (local, always) + optional Firestore mirror (cloud)
+   ========================================================================= */
+
+/* ---------------- tiny IndexedDB wrapper ---------------- */
+const DB = (() => {
+  let db = null, mem = null;                       // mem = fallback if IDB blocked
+  function open() {
+    return new Promise(res => {
+      if (db || mem) return res();
+      let req;
+      try { req = indexedDB.open('apni-hatti', 1); }
+      catch (e) { mem = new Map(); return res(); }
+      req.onupgradeneeded = () => {
+        const d = req.result;
+        if (!d.objectStoreNames.contains('items')) d.createObjectStore('items', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
+      };
+      req.onsuccess = () => { db = req.result; res(); };
+      req.onerror = () => { mem = new Map(); res(); };
+      setTimeout(() => { if (!db && !mem) { mem = new Map(); res(); } }, 2500);
+    });
+  }
+  function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+  const memKey = (s, k) => s + '::' + k;
+  return {
+    ready: open,
+    async all() {
+      await open();
+      if (mem) return [...mem.entries()].filter(([k]) => k.startsWith('items::')).map(([, v]) => v);
+      return new Promise(r => { const q = tx('items', 'readonly').getAll(); q.onsuccess = () => r(q.result || []); q.onerror = () => r([]); });
+    },
+    async put(it) {
+      await open();
+      if (mem) { mem.set(memKey('items', it.id), it); return; }
+      return new Promise(r => { const q = tx('items', 'readwrite').put(it); q.onsuccess = q.onerror = () => r(); });
+    },
+    async clear() {
+      await open();
+      if (mem) { mem.clear(); return; }
+      return new Promise(r => { const q = tx('items', 'readwrite').clear(); q.onsuccess = q.onerror = () => r(); });
+    },
+    async get(k, dflt) {
+      await open();
+      if (mem) return mem.has(memKey('kv', k)) ? mem.get(memKey('kv', k)) : dflt;
+      return new Promise(r => { const q = tx('kv', 'readonly').get(k); q.onsuccess = () => r(q.result === undefined ? dflt : q.result); q.onerror = () => r(dflt); });
+    },
+    async set(k, v) {
+      await open();
+      if (mem) { mem.set(memKey('kv', k), v); return; }
+      return new Promise(r => { const q = tx('kv', 'readwrite').put(v, k); q.onsuccess = q.onerror = () => r(); });
+    }
+  };
+})();
+
+/* ---------------- pricing engine (unit-tested) ---------------- */
+const unitSize = it => it.unit === 'pcs' ? 1 : 1000;
+const qLabel = it => it.unit === 'pcs' ? 'नग' : 'g';
+const rateLabel = it => it.unit === 'pcs' ? '/नग' : '/kg';
+
+function normSlabs(slabs) {
+  const s = (slabs || [])
+    .filter(x => Number(x.rate) > 0)
+    .map(x => ({ minQ: Math.max(0, Number(x.minQ) || 0), rate: Number(x.rate) }))
+    .sort((a, b) => b.minQ - a.minQ);
+  if (s.length) s[s.length - 1].minQ = 0;   // bottom slab always catches the rest
+  return s;
+}
+function amountToQty(it, amount) {
+  const U = unitSize(it), s = it.slabs;
+  if (!(amount > 0) || !s.length) return null;
+  const rows = s.map(sl => { const q = (amount / sl.rate) * U; return { slab: sl, qty: q, ok: q >= sl.minQ - 1e-9 }; });
+  return { chosen: rows.find(r => r.ok) || rows[rows.length - 1], rows };
+}
+function qtyToAmount(it, qty) {
+  const U = unitSize(it), s = it.slabs;
+  if (!(qty > 0) || !s.length) return null;
+  const rows = s.map(sl => ({ slab: sl, amount: (qty / U) * sl.rate, ok: qty >= sl.minQ - 1e-9 }));
+  return { chosen: rows.find(r => r.ok) || rows[rows.length - 1], rows };
+}
+const roundQty = (q, step) => step > 1 ? Math.round(q / step) * step : Math.round(q);
+const kgRate = it => it.slabs.length ? it.slabs[0].rate : 0;
+const money = n => {
+  const r = Math.round(n * 2) / 2;                       // nearest 50 paise
+  return '₹' + (Number.isInteger(r) ? r : r.toFixed(2).replace(/0$/, ''));
+};
+
+function qtyText(it, q) {
+  if (it.unit === 'pcs') return { n: String(Math.floor(q)), u: 'नग' };
+  if (q >= 1000) { const kg = q / 1000; return { n: (Math.round(kg * 1000) / 1000).toString(), u: 'kg' }; }
+  return { n: String(Math.round(q)), u: 'g' };
+}
+function slabName(it, sl, idx) {
+  if (sl.minQ === 0) return idx === 0 ? 'कोई भी मात्रा' : 'इससे कम';
+  if (it.unit === 'pcs') return sl.minQ + ' नग या ज़्यादा';
+  return (sl.minQ >= 1000 ? (sl.minQ / 1000) + ' किलो' : sl.minQ + ' ग्राम') + ' या ज़्यादा';
+}
+
+/* ---------------- state ---------------- */
+const S = { items: [], sel: null, mode: 'amt', round: 5, screen: 'calc', scan: [] };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+let toastT;
+function toast(msg) {
+  clearTimeout(toastT);
+  let t = $('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.display = 'block';
+  toastT = setTimeout(() => t.style.display = 'none', 2600);
+}
+
+const live = () => S.items.filter(i => !i.deleted);
+
+async function saveItem(it, push = true) {
+  it.updatedAt = Date.now();
+  if (push) it.dirty = 1;
+  await DB.put(it);
+  const i = S.items.findIndex(x => x.id === it.id);
+  if (i < 0) S.items.push(it); else S.items[i] = it;
+  renderItems(); renderCalc();
+  if (push) Cloud.pushSoon();
+}
+
+/* ---------------- search ---------------- */
+const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+function score(it, q) {
+  if (!q) return 0;
+  const hay = [it.nameHi, it.nameEn, it.alias].map(norm);
+  let best = -1;
+  hay.forEach(h => {
+    if (!h) return;
+    if (h === q) best = Math.max(best, 100);
+    else if (h.startsWith(q)) best = Math.max(best, 80);
+    else if (h.includes(q)) best = Math.max(best, 55);
+  });
+  return best;
+}
+const search = q => { const n = norm(q); if (!n) return live().slice(0, 8);
+  return live().map(i => ({ i, s: score(i, n) })).filter(x => x.s >= 0).sort((a, b) => b.s - a.s).slice(0, 8).map(x => x.i); };
+
+/* ---------------- calculator screen ---------------- */
+function renderSugs(list, show) {
+  const box = $('sugs');
+  if (!show || !list.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML = list.map(i =>
+    `<button class="sug" data-id="${i.id}"><b>${esc(i.nameHi || i.nameEn)}</b><span>${esc(i.nameEn || '')}</span><em>${money(kgRate(i))}${rateLabel(i)}</em></button>`
+  ).join('');
+}
+function selectItem(it) {
+  S.sel = it; $('q').value = '';
+  renderSugs([], false);
+  $('chip').classList.remove('hidden');
+  $('chipHi').textContent = it.nameHi || it.nameEn;
+  $('chipEn').textContent = it.nameEn || '';
+  $('chipRate').textContent = money(kgRate(it)) + rateLabel(it);
+  renderCalc(); $('val').focus();
+}
+function setMode(m) {
+  S.mode = m;
+  $('mAmt').setAttribute('aria-pressed', m === 'amt');
+  $('mQty').setAttribute('aria-pressed', m === 'qty');
+  $('cur').textContent = m === 'amt' ? '₹' : '⚖';
+  $('val').placeholder = m === 'amt' ? '0' : (S.sel && S.sel.unit === 'pcs' ? 'नग' : 'ग्राम');
+  renderQuick(); renderCalc();
+}
+function renderQuick() {
+  const vals = S.mode === 'amt' ? [10, 20, 50, 100, 200, 500] : [100, 250, 500, 1000, 2000];
+  $('quick').innerHTML = vals.map(v => `<button data-v="${v}">${S.mode === 'amt' ? '₹' + v : (v >= 1000 ? v / 1000 + 'kg' : v + 'g')}</button>`).join('');
+}
+function renderCalc() {
+  const out = $('out'), tbl = $('slabTbl');
+  const it = S.sel, v = parseFloat(String($('val').value).replace(/[^0-9.]/g, ''));
+  if (!it || !(v > 0)) {
+    out.classList.add('empty'); $('outNum').textContent = '—';
+    $('outSub').textContent = it ? 'रकम लिखें' : 'ऊपर सामान चुनें और रकम लिखें';
+    $('outGive').textContent = 'ग्राहक को दें'; $('outBand').classList.add('hidden');
+    tbl.classList.add('hidden'); return;
+  }
+  out.classList.remove('empty'); tbl.classList.remove('hidden');
+  const band = $('outBand'); band.classList.remove('hidden');
+
+  if (S.mode === 'amt') {
+    const r = amountToQty(it, v); if (!r) return;
+    const step = it.unit === 'pcs' ? 1 : S.round;
+    const rq = it.unit === 'pcs' ? Math.floor(r.chosen.qty) : roundQty(r.chosen.qty, step);
+    const t = qtyText(it, rq);
+    $('outGive').textContent = 'ग्राहक को दें / Give';
+    $('outNum').innerHTML = esc(t.n) + '<u>' + t.u + '</u>';
+    $('outSub').textContent = it.unit === 'pcs'
+      ? 'सटीक ' + (Math.round(r.chosen.qty * 100) / 100) + ' नग'
+      : 'सटीक ' + (Math.round(r.chosen.qty * 10) / 10) + ' g' + (step > 1 ? ' · ' + step + ' g में गोल' : '');
+    band.innerHTML = `<span>${esc(it.nameHi || it.nameEn)}</span><span>${money(r.chosen.slab.rate)}${rateLabel(it)} रेट</span>`;
+    tbl.innerHTML = `<div class="h"><span class="c1">रेट किस पर</span><span class="c2">रेट</span><span class="c3">कितना मिलेगा</span></div>` +
+      r.rows.map((row, ix) => {
+        const q = it.unit === 'pcs' ? Math.floor(row.qty) : roundQty(row.qty, step);
+        const tt = qtyText(it, q);
+        return `<div class="r ${row === r.chosen ? 'pick' : (row.ok ? '' : 'no')}">
+          <span class="c1">${esc(slabName(it, row.slab, ix))}</span>
+          <span class="c2">${money(row.slab.rate)}</span>
+          <span class="c3">${row === r.chosen ? '✓ ' : (row.ok ? '' : '✕ ')}${tt.n} ${tt.u}</span></div>`;
+      }).join('');
+  } else {
+    const r = qtyToAmount(it, v); if (!r) return;
+    const t = qtyText(it, v);
+    $('outGive').textContent = t.n + ' ' + t.u + ' का दाम / Price';
+    $('outNum').innerHTML = esc(money(r.chosen.amount).slice(1)) + '<u>₹</u>';
+    $('outSub').textContent = 'गोल करके ' + money(Math.round(r.chosen.amount)) + ' लें';
+    band.innerHTML = `<span>${esc(it.nameHi || it.nameEn)}</span><span>${money(r.chosen.slab.rate)}${rateLabel(it)} रेट</span>`;
+    tbl.innerHTML = `<div class="h"><span class="c1">रेट किस पर</span><span class="c2">रेट</span><span class="c3">दाम</span></div>` +
+      r.rows.map((row, ix) => `<div class="r ${row === r.chosen ? 'pick' : (row.ok ? '' : 'no')}">
+        <span class="c1">${esc(slabName(it, row.slab, ix))}</span>
+        <span class="c2">${money(row.slab.rate)}</span>
+        <span class="c3">${row === r.chosen ? '✓ ' : (row.ok ? '' : '✕ ')}${money(row.amount)}</span></div>`).join('');
+  }
+}
+
+/* ---------------- items screen ---------------- */
+function renderItems() {
+  const q = norm($('iq').value);
+  const list = (q ? search(q) : live().slice().sort((a, b) => norm(a.nameHi || a.nameEn).localeCompare(norm(b.nameHi || b.nameEn), 'hi'))).filter(i => !i.deleted);
+  const el = $('itemList');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><b>${live().length ? 'कुछ नहीं मिला' : 'अभी कोई सामान नहीं है'}</b>
+      ${live().length ? 'दूसरा नाम लिखकर देखें।' : '“+ नया” दबाकर पहला सामान जोड़ें, या रेट लिस्ट की फोटो स्कैन करें।'}</div>`;
+    $('statTxt').textContent = live().length + ' सामान इस फ़ोन में सेव हैं।';
+    return;
+  }
+  el.innerHTML = list.map(i => `<div class="item">
+    <div class="nm"><b>${esc(i.nameHi || i.nameEn)}</b><span>${esc(i.nameEn || '')}</span>
+      <div class="tiers">${i.slabs.map((s, ix) => `<span class="tier">${esc(slabName(i, s, ix))} · ${money(s.rate)}</span>`).join('')}</div>
+    </div>
+    <div class="pr"><b>${money(kgRate(i))}</b><span>प्रति ${i.unit === 'pcs' ? 'नग' : 'किलो'}</span></div>
+    <button class="ed" data-ed="${i.id}" aria-label="बदलें">✎</button></div>`).join('');
+  $('statTxt').textContent = live().length + ' सामान इस फ़ोन में सेव हैं।';
+}
+
+/* ---------------- add / edit sheet ---------------- */
+function openEditor(it) {
+  const isNew = !it;
+  const m = it ? JSON.parse(JSON.stringify(it)) : { id: uid(), nameHi: '', nameEn: '', alias: '', unit: 'kg', slabs: [{ minQ: 0, rate: 0 }] };
+  const sh = $('sheet');
+  const draw = () => {
+    sh.innerHTML = `<div class="sheet"><div class="in">
+      <h2>${isNew ? 'नया सामान' : 'सामान बदलें'}</h2>
+      <label class="lbl" for="e1">नाम (हिंदी)</label>
+      <input id="e1" class="field" value="${esc(m.nameHi)}" placeholder="जैसे: चीनी" style="margin-bottom:12px">
+      <label class="lbl" for="e2">Name (English)</label>
+      <input id="e2" class="field" value="${esc(m.nameEn)}" placeholder="e.g. Sugar" style="margin-bottom:12px">
+      <label class="lbl" for="e3">और नाम — जो भी बोलकर ढूँढते हैं</label>
+      <input id="e3" class="field" value="${esc(m.alias)}" placeholder="chini, shakkar" style="margin-bottom:12px">
+      <label class="lbl" for="e4">कैसे बिकता है</label>
+      <select id="e4" class="field" style="margin-bottom:18px">
+        <option value="kg"${m.unit === 'kg' ? ' selected' : ''}>तौल कर (किलो/ग्राम)</option>
+        <option value="pcs"${m.unit === 'pcs' ? ' selected' : ''}>गिनकर (नग)</option>
+      </select>
+
+      <label class="lbl">रेट</label>
+      <p class="muted" style="margin:-2px 0 10px">ऊपर वाला रेट सबसे बड़ी मात्रा का है। कम मात्रा पर रेट बढ़ाना हो तो और लाइन जोड़ें। सिर्फ़ एक रेट है तो एक ही लाइन रहने दें।</p>
+      <div id="tierBox">${m.slabs.map((s, i) => tierRow(s, i, m)).join('')}</div>
+      <button class="btn alt full" id="addTier" style="margin-top:2px">+ कम मात्रा का अलग रेट</button>
+
+      <div class="row" style="margin-top:20px">
+        <button class="btn" id="eSave" style="flex:2">सेव करें</button>
+        <button class="btn alt" id="eCancel" style="flex:1">रद्द</button>
+      </div>
+      ${isNew ? '' : '<button class="btn warn full" id="eDel" style="margin-top:10px">यह सामान हटाएँ</button>'}
+    </div></div>`;
+    wire();
+  };
+  function tierRow(s, i, mm) {
+    const last = i === mm.slabs.length - 1;
+    const unitTxt = mm.unit === 'pcs' ? 'नग' : 'ग्राम';
+    return `<div class="tierrow">
+      ${last
+        ? `<span class="fix">${mm.slabs.length === 1 ? 'कोई भी मात्रा' : 'इससे कम'}</span>`
+        : `<input class="field tq" data-i="${i}" inputmode="numeric" value="${s.minQ || ''}" placeholder="${unitTxt} से ऊपर">`}
+      <input class="field tr" data-i="${i}" inputmode="decimal" value="${s.rate || ''}" placeholder="₹ रेट">
+      ${mm.slabs.length > 1 && !last ? `<button class="del" data-rm="${i}" aria-label="हटाएँ">✕</button>` : ''}
+    </div>`;
+  }
+  function read() {
+    m.nameHi = $('e1').value.trim(); m.nameEn = $('e2').value.trim();
+    m.alias = $('e3').value.trim(); m.unit = $('e4').value;
+    sh.querySelectorAll('.tq').forEach(el => m.slabs[+el.dataset.i].minQ = parseFloat(el.value) || 0);
+    sh.querySelectorAll('.tr').forEach(el => m.slabs[+el.dataset.i].rate = parseFloat(el.value) || 0);
+  }
+  function wire() {
+    $('e4').onchange = () => { read(); draw(); };
+    sh.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { read(); m.slabs.splice(+b.dataset.rm, 1); draw(); });
+    $('addTier').onclick = () => { read(); m.slabs.splice(m.slabs.length - 1, 0, { minQ: 0, rate: 0 }); draw(); };
+    $('eCancel').onclick = () => sh.innerHTML = '';
+    if ($('eDel')) $('eDel').onclick = async () => {
+      if (!confirm('“' + (m.nameHi || m.nameEn) + '” हटाना है?')) return;
+      const d = S.items.find(x => x.id === m.id); d.deleted = true;
+      await saveItem(d); sh.innerHTML = '';
+      if (S.sel && S.sel.id === d.id) clearSel();
+      toast('हटा दिया');
+    };
+    $('eSave').onclick = async () => {
+      read();
+      if (!m.nameHi && !m.nameEn) return toast('नाम लिखना ज़रूरी है');
+      const s = normSlabs(m.slabs);
+      if (!s.length) return toast('कम से कम एक रेट लिखें');
+      m.slabs = s; m.deleted = false;
+      await saveItem(m); sh.innerHTML = '';
+      if (S.sel && S.sel.id === m.id) selectItem(m);
+      toast('सेव हो गया');
+    };
+  }
+  draw();
+}
+function clearSel() { S.sel = null; $('chip').classList.add('hidden'); $('val').value = ''; renderCalc(); }
+
+/* ---------------- voice ---------------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function startVoice() {
+  if (!SR) return toast('इस फ़ोन में आवाज़ नहीं चलती');
+  if (!navigator.onLine) return toast('आवाज़ के लिए इंटरनेट चाहिए');
+  if (rec) { rec.stop(); return; }
+  rec = new SR(); rec.lang = 'hi-IN'; rec.interimResults = false; rec.maxAlternatives = 3;
+  $('mic').classList.add('live');
+  rec.onresult = e => {
+    const alts = [...e.results[0]].map(a => a.transcript);
+    for (const t of alts) if (applyVoice(t)) return;
+    toast('समझ नहीं आया: ' + alts[0]);
+  };
+  rec.onerror = () => toast('आवाज़ नहीं पकड़ी गई');
+  rec.onend = () => { $('mic').classList.remove('live'); rec = null; };
+  rec.start();
+}
+// Token-based so a stop word can never eat part of a real item name
+// (a substring rule would turn "काजू" into nothing via "का").
+const MONEY_W = ['रुपये', 'रुपए', 'रुपया', 'रुपयों', 'रूपये', 'रुपय', 'रूपए', 'rupees', 'rupee', 'rupaye', 'rupya', 'rs', 'rs.', '₹'];
+const KG_W = ['किलो', 'किलोग्राम', 'kilo', 'kilos', 'kg', 'kgs', 'kilogram'];
+const G_W = ['ग्राम', 'gram', 'grams', 'gm', 'gms', 'g'];
+const PCS_W = ['नग', 'पीस', 'piece', 'pieces', 'pcs', 'दाने'];
+const FILLER_W = ['का', 'के', 'की', 'को', 'भर', 'दे', 'दो', 'देना', 'दीजिए', 'दीजिये', 'चाहिए', 'give', 'me', 'of', 'ka', 'ke', 'ki'];
+const WORD_NUM = { 'आधा': .5, 'आधी': .5, 'आध': .5, 'half': .5, 'पाव': .25, 'paav': .25, 'सवा': 1.25, 'डेढ़': 1.5, 'डेढ': 1.5, 'ढाई': 2.5, 'पौन': .75, 'एक': 1, 'दो': 2, 'one': 1, 'two': 2 };
+
+// "चीनी 50 रुपये" · "sugar 500 gram" · "आटा आधा किलो" · "chini"
+function applyVoice(text) {
+  const toks = norm(text).replace(/[,।]/g, ' ').split(/\s+/).filter(Boolean);
+  const has = (list) => toks.some(t => list.includes(t));
+  const isMoney = has(MONEY_W), isKg = has(KG_W), isG = has(G_W), isPcs = has(PCS_W);
+
+  let n = null;
+  for (const t of toks) {
+    if (/^\d+(\.\d+)?$/.test(t)) { n = parseFloat(t); break; }
+    if (n === null && WORD_NUM[t] !== undefined && (isKg || isG || isPcs)) n = WORD_NUM[t];
+  }
+
+  const drop = new Set([...MONEY_W, ...KG_W, ...G_W, ...PCS_W, ...FILLER_W, ...Object.keys(WORD_NUM)]);
+  const name = toks.filter(t => !drop.has(t) && !/^\d+(\.\d+)?$/.test(t)).join(' ');
+
+  if (name) { const hit = search(name)[0]; if (hit) selectItem(hit); }
+  if (!S.sel) {
+    if (!name) return false;
+    $('q').value = name; renderSugs(search(name), true);
+    return true;
+  }
+  if (n === null) return !!name;                       // just a name — item is selected, that's enough
+
+  if (isMoney || (!isKg && !isG && !isPcs)) { setMode('amt'); $('val').value = String(n); }
+  else { setMode('qty'); $('val').value = String(isKg ? n * 1000 : n); }
+  renderCalc();
+  return true;
+}
+
+/* ---------------- OCR (loaded only when used) ---------------- */
+const TESS = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+function loadScript(src) {
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+}
+async function runOCR(file) {
+  const bar = $('ocrBar'), msg = $('ocrMsg');
+  bar.classList.remove('hidden'); bar.firstElementChild.style.width = '5%';
+  msg.textContent = 'पढ़ने का औज़ार डाउनलोड हो रहा है… (पहली बार इंटरनेट चाहिए)';
+  try {
+    if (!window.Tesseract) await loadScript(TESS);
+    msg.textContent = 'फोटो पढ़ी जा रही है…';
+    const r = await window.Tesseract.recognize(file, 'eng', {
+      logger: p => { if (p.progress) bar.firstElementChild.style.width = Math.round(10 + p.progress * 90) + '%'; }
+    });
+    parseOCR(r.data.text);
+  } catch (e) {
+    msg.textContent = 'फोटो नहीं पढ़ी जा सकी। इंटरनेट जाँचें, या “सामान” में जाकर हाथ से जोड़ें।';
+  } finally { bar.classList.add('hidden'); }
+}
+function parseOCR(text) {
+  const rows = [];
+  text.split(/\r?\n/).forEach(ln => {
+    const l = ln.replace(/[|_]/g, ' ').trim();
+    if (l.length < 3) return;
+    const m = l.match(/^(.*?)[\s.:\-—]*?(\d+(?:\.\d{1,2})?)\s*(?:\/?\s*(?:kg|किलो|per\s*kg))?\s*$/i);
+    if (!m) return;
+    const name = m[1].replace(/[^\p{L}\p{M}\s.&-]/gu, '').replace(/\s+/g, ' ').trim();
+    const digits = m[2].replace('.', '');
+    const rate = parseFloat(m[2]);
+    if (!name || name.length < 2 || !(rate > 0) || rate > 20000 || digits.length > 6) return;
+    rows.push({ name, rate });
+  });
+  S.scan = rows;
+  $('ocrMsg').textContent = rows.length ? rows.length + ' लाइन मिलीं। नीचे जाँच लें।' : 'कोई साफ़ लाइन नहीं मिली। और पास से, सीधी और अच्छी रोशनी में फोटो लें।';
+  renderScan();
+}
+function renderScan() {
+  const wrapEl = $('scanEdit');
+  if (!S.scan.length) { wrapEl.classList.add('hidden'); return; }
+  wrapEl.classList.remove('hidden');
+  $('scanRows').innerHTML = S.scan.map((r, i) => `<div class="scanrow">
+    <input class="field sn" data-i="${i}" value="${esc(r.name)}" placeholder="नाम">
+    <input class="field sr" data-i="${i}" inputmode="decimal" value="${r.rate}" placeholder="₹/kg">
+    <button class="rm" data-i="${i}" aria-label="हटाएँ">✕</button></div>`).join('');
+  $('scanRows').querySelectorAll('.rm').forEach(b => b.onclick = () => { readScan(); S.scan.splice(+b.dataset.i, 1); renderScan(); });
+}
+function readScan() {
+  $('scanRows').querySelectorAll('.sn').forEach(e => S.scan[+e.dataset.i].name = e.value.trim());
+  $('scanRows').querySelectorAll('.sr').forEach(e => S.scan[+e.dataset.i].rate = parseFloat(e.value) || 0);
+}
+
+/* ---------------- backup file ---------------- */
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({ app: 'apni-hatti', v: 1, at: new Date().toISOString(), items: S.items }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'apni-hatti-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast('बैकअप फ़ाइल बन गई');
+}
+async function importJSON(file) {
+  try {
+    const d = JSON.parse(await file.text());
+    if (!Array.isArray(d.items)) throw 0;
+    let n = 0;
+    for (const raw of d.items) {
+      if (!raw || !raw.id) continue;
+      const it = { id: raw.id, nameHi: raw.nameHi || '', nameEn: raw.nameEn || '', alias: raw.alias || '',
+        unit: raw.unit === 'pcs' ? 'pcs' : 'kg', slabs: normSlabs(raw.slabs), deleted: !!raw.deleted,
+        updatedAt: raw.updatedAt || Date.now(), dirty: 1 };
+      if (!it.slabs.length) continue;
+      const old = S.items.find(x => x.id === it.id);
+      if (old && old.updatedAt > it.updatedAt) continue;   // keep the newer copy
+      await DB.put(it);
+      const ix = S.items.findIndex(x => x.id === it.id);
+      if (ix < 0) S.items.push(it); else S.items[ix] = it;
+      n++;
+    }
+    renderItems(); renderCalc(); Cloud.pushSoon();
+    toast(n + ' सामान चढ़ गए');
+  } catch (e) { toast('फ़ाइल सही नहीं है'); }
+}
+
+/* ---------------- cloud sync (optional Firestore) ---------------- */
+const Cloud = (() => {
+  let app = null, auth = null, fs = null, user = null, cfg = null, timer = null, busy = false;
+  const M = {};   // firebase modular fns
+
+  function status(txt, cls) { $('syncTxt').textContent = txt; $('syncDot').className = 'dot' + (cls ? ' ' + cls : ''); }
+
+  async function boot(c) {
+    cfg = c;
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    const [a, au, fst] = await Promise.all([
+      import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')
+    ]);
+    Object.assign(M, a, au, fst);
+    app = M.initializeApp(cfg);
+    auth = M.getAuth(app);
+    fs = M.getFirestore(app);
+    M.onAuthStateChanged(auth, u => {
+      user = u;
+      $('fbMsg').textContent = u ? 'लॉगिन: ' + u.email : 'लॉगिन नहीं है।';
+      status(u ? 'क्लाउड' : 'लोकल', u ? 'on' : '');
+      if (u) sync();
+    });
+    $('fbAuth').classList.remove('hidden');
+  }
+
+  async function login(email, pass) {
+    if (!auth) return toast('पहले config सेव करें');
+    try { await M.signInWithEmailAndPassword(auth, email, pass); toast('लॉगिन हो गया'); }
+    catch (e) { $('fbMsg').textContent = 'लॉगिन नहीं हुआ: ' + (e.code || e.message); }
+  }
+  async function logout() { if (auth) { await M.signOut(auth); toast('लॉगआउट'); } }
+
+  function pushSoon() { clearTimeout(timer); timer = setTimeout(sync, 1500); }
+
+  async function sync() {
+    if (!fs || !user || busy) return;
+    if (!navigator.onLine) { status('ऑफ़लाइन', 'err'); return; }
+    busy = true; status('सिंक…', 'on');
+    try {
+      const col = M.collection(fs, 'users', user.uid, 'items');
+      // push local changes
+      for (const it of S.items.filter(x => x.dirty)) {
+        const { dirty, ...doc } = it;
+        await M.setDoc(M.doc(col, it.id), doc);
+        it.dirty = 0; await DB.put(it);
+      }
+      // pull remote changes
+      const since = await DB.get('lastSync', 0);
+      const snap = await M.getDocs(M.query(col, M.where('updatedAt', '>', since)));
+      let n = 0;
+      snap.forEach(d => {
+        const r = d.data(); if (!r || !r.updatedAt) return;
+        const it = { id: d.id, nameHi: r.nameHi || '', nameEn: r.nameEn || '', alias: r.alias || '',
+          unit: r.unit === 'pcs' ? 'pcs' : 'kg', slabs: normSlabs(r.slabs), deleted: !!r.deleted,
+          updatedAt: r.updatedAt, dirty: 0 };
+        const ix = S.items.findIndex(x => x.id === it.id);
+        if (ix < 0) { S.items.push(it); DB.put(it); n++; }
+        else if (S.items[ix].updatedAt < it.updatedAt) { S.items[ix] = it; DB.put(it); n++; }
+      });
+      await DB.set('lastSync', Date.now());
+      if (n) { renderItems(); renderCalc(); }
+      status('क्लाउड', 'on');
+      $('fbMsg').textContent = 'आख़िरी सिंक: अभी' + (n ? ' · ' + n + ' अपडेट आए' : '');
+    } catch (e) {
+      status('सिंक रुका', 'err');
+      $('fbMsg').textContent = 'सिंक नहीं हुआ: ' + (e.code || e.message);
+    } finally { busy = false; }
+  }
+
+  return { boot, login, logout, sync, pushSoon, status, get on() { return !!user; } };
+})();
+
+/* ---------------- screens ---------------- */
+function show(t) {
+  S.screen = t;
+  ['calc', 'items', 'scan', 'set'].forEach(k => $('scr-' + k).classList.toggle('hidden', k !== t));
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.t === t ? 'page' : 'false'));
+  window.scrollTo(0, 0);
+}
+
+/* ---------------- wiring ---------------- */
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => show(b.dataset.t));
+
+$('q').addEventListener('input', e => renderSugs(search(e.target.value), true));
+$('q').addEventListener('focus', () => renderSugs(search($('q').value), true));
+$('sugs').addEventListener('click', e => {
+  const b = e.target.closest('.sug'); if (!b) return;
+  const it = S.items.find(i => i.id === b.dataset.id); if (it) selectItem(it);
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pick')) renderSugs([], false);
+});
+$('chipX').onclick = clearSel;
+$('mic').onclick = startVoice;
+$('mAmt').onclick = () => setMode('amt');
+$('mQty').onclick = () => setMode('qty');
+$('val').addEventListener('input', renderCalc);
+$('quick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('val').value = b.dataset.v; renderCalc();
+});
+
+$('iq').addEventListener('input', renderItems);
+$('addNew').onclick = () => openEditor(null);
+$('itemList').addEventListener('click', e => {
+  const b = e.target.closest('[data-ed]'); if (!b) return;
+  openEditor(S.items.find(i => i.id === b.dataset.ed));
+});
+
+$('pic').addEventListener('change', e => { if (e.target.files[0]) runOCR(e.target.files[0]); });
+$('scanSave').onclick = async () => {
+  readScan();
+  let n = 0;
+  for (const r of S.scan) {
+    if (!r.name || !(r.rate > 0)) continue;
+    const hit = live().find(i => norm(i.nameHi) === norm(r.name) || norm(i.nameEn) === norm(r.name));
+    if (hit) { hit.slabs = normSlabs([{ minQ: hit.slabs[0] ? hit.slabs[0].minQ : 0, rate: r.rate }, ...hit.slabs.slice(1)]); await saveItem(hit); }
+    else {
+      const hi = /[\u0900-\u097F]/.test(r.name);
+      await saveItem({ id: uid(), nameHi: hi ? r.name : '', nameEn: hi ? '' : r.name, alias: '', unit: 'kg',
+        slabs: [{ minQ: 0, rate: r.rate }], deleted: false });
+    }
+    n++;
+  }
+  S.scan = []; renderScan(); $('ocrMsg').textContent = '';
+  toast(n + ' सामान सेव हुए'); show('items');
+};
+
+$('roundSel').addEventListener('change', async e => { S.round = +e.target.value; await DB.set('round', S.round); renderCalc(); });
+$('expBtn').onclick = exportJSON;
+$('impBtn').onclick = () => $('impFile').click();
+$('impFile').addEventListener('change', e => { if (e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ''; });
+$('wipe').onclick = async () => {
+  if (!confirm('इस फ़ोन का सारा सामान मिट जाएगा। पहले बैकअप निकाल लें। मिटाना है?')) return;
+  await DB.clear(); await DB.set('lastSync', 0); S.items = []; clearSel(); renderItems(); toast('मिटा दिया');
+};
+$('fbSave').onclick = async () => {
+  const raw = $('fbCfg').value.trim();
+  if (!raw) return toast('config खाली है');
+  try {
+    const c = JSON.parse(raw);
+    if (!c.apiKey || !c.projectId) throw 0;
+    await DB.set('fbCfg', c);
+    $('fbMsg').textContent = 'Config सेव हो गया। अब ईमेल-पासवर्ड से लॉगिन करें।';
+    Cloud.boot(c).catch(() => $('fbMsg').textContent = 'Firebase लोड नहीं हुआ — इंटरनेट जाँचें।');
+  } catch (e) { toast('config सही JSON नहीं है'); }
+};
+$('fbLogin').onclick = () => Cloud.login($('fbEmail').value.trim(), $('fbPass').value);
+$('fbOut').onclick = () => Cloud.logout();
+$('fbSync').onclick = () => Cloud.sync();
+window.addEventListener('online', () => Cloud.sync());
+window.addEventListener('offline', () => Cloud.status('ऑफ़लाइन', 'err'));
+
+/* ---------------- start ---------------- */
+(async function init() {
+  await DB.ready();
+  S.items = await DB.all();
+  S.round = +(await DB.get('round', 5));
+  $('roundSel').value = String(S.round);
+  setMode('amt'); renderItems(); renderCalc();
+  if (!navigator.onLine) Cloud.status('ऑफ़लाइन', 'err');
+
+  const c = await DB.get('fbCfg', null);
+  if (c) { $('fbCfg').value = JSON.stringify(c); Cloud.boot(c).catch(() => {}); }
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>

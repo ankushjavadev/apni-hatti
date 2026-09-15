@@ -1,0 +1,15 @@
+{
+  "name": "अपनी हट्टी — दुकान कैलकुलेटर",
+  "short_name": "अपनी हट्टी",
+  "description": "दुकान के लिए रेट और तौल का हिसाब — बिना इंटरनेट भी चलता है",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFDF7",
+  "theme_color": "#0E5C3F",
+  "lang": "hi",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

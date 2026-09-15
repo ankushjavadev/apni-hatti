@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="34" fill="#0E5C3F"/>
+  <!-- balance scale: beam, pans, stand -->
+  <g stroke="#F2B01E" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M96 44v96"/>
+    <path d="M40 62h112"/>
+    <path d="M68 146h56"/>
+    <path d="M40 62 22 96h36z" fill="#F2B01E" stroke-linejoin="round"/>
+    <path d="M152 62l-18 34h36z" fill="#FFFDF7" stroke="#FFFDF7" stroke-linejoin="round"/>
+  </g>
+  <circle cx="96" cy="44" r="9" fill="#F2B01E"/>
+</svg>
