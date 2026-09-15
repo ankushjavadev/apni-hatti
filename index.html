@@ -244,12 +244,14 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 <main id="scr-set" class="wrap hidden">
   <div class="card">
     <h3>तौल की गोलाई / Rounding</h3>
-    <p>तराज़ू पर जितने ग्राम देना आसान हो, उतना चुनें। हमेशा <b>नीचे</b> की तरफ़ गोल होगा — ग्राहक को पैसे से ज़्यादा तौल कभी नहीं जाएगी।</p>
+    <p>आपके सबसे छोटे बट्टे जितने का है, वही चुनें। तौल हमेशा <b>नीचे</b> वाले बट्टे तक आएगी — 19 ग्राम बने तो 10 ग्राम देंगे। ग्राहक को पैसे से ज़्यादा तौल कभी नहीं जाएगी।</p>
     <select id="roundSel" class="field">
-      <option value="1">1 ग्राम — पूरा ग्राम नीचे</option>
-      <option value="5">5 ग्राम नीचे</option>
-      <option value="10">10 ग्राम नीचे</option>
-      <option value="25">25 ग्राम नीचे</option>
+      <option value="1">1 ग्राम के बट्टे</option>
+      <option value="5">5 ग्राम के बट्टे</option>
+      <option value="10">10 ग्राम के बट्टे</option>
+      <option value="20">20 ग्राम के बट्टे</option>
+      <option value="25">25 ग्राम के बट्टे</option>
+      <option value="50">50 ग्राम के बट्टे</option>
     </select>
   </div>
 
@@ -510,7 +512,7 @@ function renderCalc() {
     $('outNum').innerHTML = esc(t.n) + '<u>' + t.u + '</u>';
     $('outSub').textContent = it.unit === 'pcs'
       ? 'सटीक ' + (Math.round(r.chosen.qty * 100) / 100) + ' नग'
-      : 'सटीक ' + (Math.round(r.chosen.qty * 10) / 10) + ' g' + (step > 1 ? ' · ' + step + ' g नीचे' : '');
+      : 'सटीक ' + (Math.round(r.chosen.qty * 10) / 10) + ' g' + (step > 1 ? ' · ' + step + ' g के बट्टे तक नीचे' : '');
     band.innerHTML = `<span>${esc(it.nameHi || it.nameEn)}</span><span>${money(r.chosen.slab.rate)}${rateLabel(it)} रेट</span>`;
     tbl.innerHTML = `<div class="h"><span class="c1">रेट किस पर</span><span class="c2">रेट</span><span class="c3">कितना मिलेगा</span></div>` +
       r.rows.map((row, ix) => {
@@ -1005,7 +1007,8 @@ window.addEventListener('offline', () => Cloud.refresh());
 (async function init() {
   await DB.ready();
   S.items = await DB.all();
-  S.round = +(await DB.get('round', 5));
+  S.round = +(await DB.get('round', 10));   // matches a 10/20/30 g weight set
+  if (![1, 5, 10, 20, 25, 50].includes(S.round)) { S.round = 10; await DB.set('round', 10); }
   $('roundSel').value = String(S.round);
   setMode('amt'); renderItems(); renderCalc();
   if (!navigator.onLine) Cloud.status('ऑफ़लाइन', 'err');
