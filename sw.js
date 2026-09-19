@@ -1,5 +1,5 @@
 /* अपनी हट्टी — app shell cache. Bump VERSION after every edit to index.html. */
-const VERSION = 'ah-v6';
+const VERSION = 'ah-v11';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -12,6 +12,13 @@ self.addEventListener('activate', e => {
       .then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+// answer the page's build check
+self.addEventListener('message', e => {
+  if (e.data && e.data.q === 'version' && e.ports && e.ports[0]) {
+    e.ports[0].postMessage({ version: VERSION });
+  }
 });
 
 self.addEventListener('fetch', e => {

@@ -123,13 +123,20 @@ input,select{background:#fff}
 .item .nm span{font-size:13px;color:var(--ink-2)}
 .item .pr{text-align:right}
 .item .pr b{display:block;font-size:19px;font-weight:800;color:var(--green)}
-.item .pr span{font-size:11px;color:var(--ink-2)}
+.item .pr b.norate{font-size:14px;color:var(--red)}
+.item .pr span{font-size:11px;color:var(--ink-2);display:block}
+.item .pr .age{margin-top:3px;font-weight:700}
+.item .pr .age.old{color:var(--red)}
 .item .ed{width:42px;height:42px;border-radius:6px;background:#F7F1E4;font-size:17px}
 .tiers{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .tier{font-size:11px;font-weight:700;padding:3px 7px;border-radius:4px;background:#F7F1E4;color:var(--ink-2)}
 
 .empty-state{text-align:center;padding:48px 20px;color:var(--ink-2)}
 .empty-state b{display:block;font-size:17px;color:var(--ink);margin-bottom:6px}
+.howto{margin:0 0 12px;padding-left:20px;font-size:14px;line-height:1.9}
+.howto li{margin-bottom:2px}
+.sample{background:#F7F1E4;border:1.5px dashed var(--line);border-radius:8px;padding:14px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;line-height:2;white-space:pre}
 
 /* ---------- sheet ---------- */
 .sheet{position:fixed;inset:0;z-index:50;background:rgba(23,19,16,.5);display:flex;align-items:flex-end}
@@ -163,6 +170,7 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 .tabs button[aria-current=page]{color:var(--green)}
 .tabs button[aria-current=page] i{transform:scale(1.08)}
 
+.warnbar{background:var(--red);color:#fff;padding:11px 14px;font-size:13px;font-weight:700;line-height:1.35}
 .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);z-index:60;
   background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:8px;font-size:14px;font-weight:600;
   max-width:88vw;text-align:center}
@@ -170,9 +178,10 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 </head>
 <body>
 
+<div id="warn" class="warnbar hidden"></div>
 <header class="top">
   <h1>अपनी हट्टी<small>Apni Hatti · दुकान कैलकुलेटर</small></h1>
-  <div class="sync" id="syncBox"><span class="dot" id="syncDot"></span><span id="syncTxt">लोकल</span></div>
+  <div class="sync" id="syncBox"><span id="syncTxt"></span></div>
 </header>
 
 <!-- ================= CALCULATOR ================= -->
@@ -184,9 +193,27 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
   </div>
 
   <div id="chip" class="chip hidden">
-    <div><b id="chipHi"></b><div class="muted" id="chipEn"></div></div>
+    <div><b id="chipHi"></b><div class="muted" id="chipEn"></div><div class="muted" id="chipAge"></div></div>
     <div class="r" id="chipRate"></div>
     <button class="x" id="chipX" aria-label="हटाएँ">✕</button>
+  </div>
+
+  <button class="btn alt full" id="quickBtn" style="margin-top:12px">बिना सामान के — सीधा रेट डालें</button>
+
+  <div id="quickBar" class="chip hidden" style="border-color:var(--mustard-dk);background:#FDF3DC">
+    <div style="flex:1;min-width:0">
+      <div class="lbl" style="margin-bottom:6px">सीधा हिसाब — रेट डालें</div>
+      <div style="display:flex;gap:8px">
+        <input id="qRate" class="field" inputmode="decimal" placeholder="₹ रेट" style="flex:1;min-width:0;height:48px">
+        <select id="qUnit" class="field" style="flex:1;min-width:0;height:48px">
+          <option value="kg">प्रति किलो</option>
+          <option value="ltr">प्रति लीटर</option>
+          <option value="pcs">प्रति नग</option>
+        </select>
+      </div>
+      <button class="btn alt full" id="qSave" style="height:42px;margin-top:8px;font-size:14px">इसे सामान में सेव करें</button>
+    </div>
+    <button class="x" id="quickX" aria-label="बंद करें" style="align-self:flex-start">✕</button>
   </div>
 
   <div class="seg" role="group">
@@ -226,6 +253,16 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
   <div class="card">
     <h3>रेट लिस्ट की फोटो पढ़ें</h3>
     <p>छपे हुए रेट बोर्ड या लिस्ट की साफ़ फोटो लें। हर लाइन में सामान का नाम और उसका किलो रेट हो। पढ़ने के बाद आप सब कुछ ठीक कर सकते हैं — बिना जाँचे कुछ सेव नहीं होगा।</p>
+    <button class="btn alt full" id="showSample" style="margin-bottom:12px">कागज़ पर कैसे लिखें — नमूना देखें</button>
+    <div id="sampleBox" class="hidden" style="margin-bottom:12px">
+      <div class="sample">चीनी      300
+आटा       45
+चावल      60
+तूर दाल   140
+सरसों तेल 180</div>
+      <p class="muted" style="margin-top:10px">एक लाइन में एक सामान। पहले नाम, फिर उसका किलो रेट। बीच में और कुछ न लिखें। साफ़ बड़े अक्षरों में, सीधी लाइनों में लिखें — तिरछा या जुड़ा हुआ लिखा ठीक से नहीं पढ़ा जाता।</p>
+      <p class="muted"><b>छपी हुई लिस्ट सबसे अच्छी पढ़ी जाती है।</b> हाथ की लिखावट अक्सर ग़लत पढ़ी जाती है, इसलिए सेव करने से पहले हर लाइन ख़ुद जाँच लें।</p>
+    </div>
     <input type="file" id="pic" accept="image/*" capture="environment" class="field" style="padding:12px;height:auto">
     <div class="bar hidden" id="ocrBar"><i></i></div>
     <div class="muted" id="ocrMsg"></div>
@@ -265,21 +302,31 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
     <input type="file" id="impFile" accept="application/json,.json" class="hidden">
   </div>
 
+
   <div class="card">
-    <h3>क्लाउड सिंक (Firebase)</h3>
-    <p>Firebase console से <b>firebaseConfig</b> पूरा कॉपी करके यहाँ चिपका दें — जैसा है वैसा, const और सेमीकोलन समेत। फिर ईमेल-पासवर्ड से लॉगिन करें। README में पूरे स्टेप लिखे हैं।</p>
-    <textarea id="fbCfg" class="field" placeholder="Firebase console से firebaseConfig जैसा है वैसा चिपका दें"></textarea>
-    <button class="btn full alt" id="fbSave" style="margin-top:10px">Config सेव करें</button>
-    <div id="fbAuth" class="hidden" style="margin-top:12px">
-      <input id="fbEmail" class="field" type="email" placeholder="ईमेल" autocomplete="username" style="margin-bottom:8px">
-      <input id="fbPass" class="field" type="password" placeholder="पासवर्ड" autocomplete="current-password" style="margin-bottom:10px">
-      <div class="row">
-        <button class="btn" id="fbLogin" style="flex:1">लॉगिन</button>
-        <button class="btn alt" id="fbSync" style="flex:1">अभी सिंक करें</button>
-      </div>
-      <button class="btn warn full" id="fbOut" style="margin-top:8px">लॉगआउट</button>
-    </div>
-    <div class="muted" id="fbMsg" style="margin-top:10px"></div>
+    <h3>दुकान की आम लिस्ट</h3>
+    <p>किराना दुकान का आम सामान एक बार में जोड़ लें — नाम पहले से भरे हैं, रेट आप लिखेंगे। जो पहले से है वह दोबारा नहीं जुड़ेगा।</p>
+    <button class="btn alt full" id="loadCat2">लिस्ट भरें</button>
+  </div>
+
+  <div class="card">
+    <h3>बोलकर हिसाब — कैसे बोलें</h3>
+    <p>एक ही बार में सामान और रकम, दोनों बोलें। 🎤 दबाकर बोलिए:</p>
+    <ul class="howto">
+      <li><b>“चीनी पचास रुपये”</b> — चीनी, ₹50 की तौल</li>
+      <li><b>“आटा आधा किलो”</b> — आटे का 500 ग्राम का दाम</li>
+      <li><b>“काजू सौ रुपये”</b></li>
+      <li><b>“चावल पाव किलो”</b> — 250 ग्राम</li>
+      <li><b>“साबुन बारह नग”</b></li>
+      <li><b>“चीनी”</b> — सिर्फ़ नाम, रकम हाथ से लिखें</li>
+    </ul>
+    <p>पहले सामान का नाम, फिर नंबर, फिर <b>रुपये</b> / <b>किलो</b> / <b>ग्राम</b> / <b>नग</b>। “रुपये” कहेंगे तो तौल मिलेगी, “किलो/ग्राम” कहेंगे तो दाम मिलेगा। बोलने के लिए इंटरनेट चाहिए।</p>
+  </div>
+
+  <div class="card">
+    <h3>बिल्ड / Build</h3>
+    <p>कोई नया बदलाव दिख नहीं रहा? यहाँ देखें — दोनों नंबर एक जैसे होने चाहिए।</p>
+    <div id="buildInfo" class="muted" style="font-weight:700"></div>
   </div>
 
   <div class="card">
@@ -300,6 +347,7 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 
 <script>
 'use strict';
+const BUILD = 'ah-v11';   // must match VERSION in sw.js
 /* =========================================================================
    अपनी हट्टी — offline-first shop calculator
    Storage: IndexedDB (local, always) + optional Firestore mirror (cloud)
@@ -328,6 +376,7 @@ const DB = (() => {
   const memKey = (s, k) => s + '::' + k;
   return {
     ready: open,
+    get durable() { return !!db; },
     async all() {
       await open();
       if (mem) return [...mem.entries()].filter(([k]) => k.startsWith('items::')).map(([, v]) => v);
@@ -356,10 +405,167 @@ const DB = (() => {
   };
 })();
 
+/* Pre-loaded kirana list. NAMES ONLY — never prices.
+   There is no free feed of retail kirana rates: government data is wholesale
+   mandi prices per quintal per district, not what a shop charges. A shopkeeper's
+   rate depends on their wholesaler, locality and margin. A wrong pre-filled
+   price that gets trusted means selling at a loss or overcharging a customer,
+   so every imported item starts with a blank rate the shopkeeper fills in. */
+const CATALOG = `चीनी|Sugar|chini shakkar|kg
+गुड़|Jaggery|gud gur|kg
+नमक|Salt|namak|kg
+सेंधा नमक|Rock Salt|sendha namak|kg
+गेहूँ का आटा|Wheat Flour|atta gehu|kg
+मैदा|Refined Flour|maida|kg
+सूजी|Semolina|suji rava|kg
+बेसन|Gram Flour|besan|kg
+चावल|Rice|chawal rice|kg
+बासमती चावल|Basmati Rice|basmati|kg
+पोहा|Flattened Rice|poha chiwda|kg
+दलिया|Broken Wheat|daliya|kg
+साबूदाना|Sago|sabudana|kg
+मक्का आटा|Maize Flour|makka makai|kg
+बाजरा|Pearl Millet|bajra|kg
+ज्वार|Sorghum|jowar|kg
+तूर दाल|Pigeon Pea|toor arhar|kg
+चना दाल|Split Chickpea|chana dal|kg
+मूंग दाल|Moong Dal|moong|kg
+मसूर दाल|Red Lentil|masoor|kg
+उड़द दाल|Black Gram|urad|kg
+राजमा|Kidney Beans|rajma|kg
+काबुली चना|Chickpea|kabuli chana chhole|kg
+काला चना|Black Chana|kala chana|kg
+मटर|Dried Peas|matar|kg
+सोयाबीन बड़ी|Soya Chunks|soya nutri|kg
+सरसों तेल|Mustard Oil|sarson tel|ltr
+रिफाइंड तेल|Refined Oil|refined tel|ltr
+सोयाबीन तेल|Soybean Oil|soyabean tel|ltr
+नारियल तेल|Coconut Oil|nariyal tel|ltr
+देसी घी|Ghee|ghee|kg
+वनस्पति घी|Vanaspati|dalda vanaspati|kg
+हल्दी|Turmeric|haldi|kg
+मिर्च पाउडर|Red Chilli Powder|mirch lal|kg
+धनिया पाउडर|Coriander Powder|dhaniya|kg
+जीरा|Cumin|jeera|kg
+राई|Mustard Seeds|rai sarson dana|kg
+सौंफ|Fennel|saunf|kg
+अजवाइन|Carom Seeds|ajwain|kg
+मेथी दाना|Fenugreek Seeds|methi|kg
+काली मिर्च|Black Pepper|kali mirch|kg
+लौंग|Cloves|laung|kg
+इलायची|Cardamom|elaichi|kg
+दालचीनी|Cinnamon|dalchini|kg
+तेज पत्ता|Bay Leaf|tej patta|kg
+हींग|Asafoetida|hing|kg
+गरम मसाला|Garam Masala|garam masala|kg
+चाट मसाला|Chaat Masala|chaat masala|kg
+सांभर मसाला|Sambar Masala|sambar masala|kg
+कसूरी मेथी|Dried Fenugreek|kasuri methi|kg
+खड़ी मिर्च|Whole Red Chilli|sabut mirch|kg
+इमली|Tamarind|imli|kg
+काजू|Cashew|kaju|kg
+बादाम|Almond|badam|kg
+किशमिश|Raisin|kishmish|kg
+अखरोट|Walnut|akhrot|kg
+पिस्ता|Pistachio|pista|kg
+मूंगफली|Peanut|mungfali groundnut|kg
+छुहारा|Dried Date|chuhara|kg
+खजूर|Dates|khajur|kg
+मखाना|Fox Nut|makhana|kg
+नारियल गोला|Dry Coconut|nariyal gola|kg
+चिरौंजी|Charoli|chironji|kg
+चाय पत्ती|Tea Leaves|chai patti|kg
+कॉफी|Coffee|coffee|kg
+दूध|Milk|doodh|ltr
+दही|Curd|dahi|kg
+पनीर|Paneer|paneer|kg
+मक्खन|Butter|makhan|kg
+मिल्क पाउडर|Milk Powder|milk powder|kg
+सूखा दूध|Skimmed Milk|sukha doodh|kg
+आलू|Potato|aloo|kg
+प्याज|Onion|pyaz|kg
+टमाटर|Tomato|tamatar|kg
+अदरक|Ginger|adrak|kg
+लहसुन|Garlic|lahsun|kg
+हरी मिर्च|Green Chilli|hari mirch|kg
+नींबू|Lemon|nimbu|kg
+धनिया पत्ती|Coriander Leaves|hara dhaniya|kg
+सेब|Apple|seb apple|kg
+केला|Banana|kela|kg
+नमकीन|Namkeen|namkeen mixture|kg
+भुजिया|Bhujia|bhujia|kg
+पापड़|Papad|papad|pcs
+बिस्कुट|Biscuit|biscuit|pcs
+रस्क|Rusk|rusk toast|pcs
+ब्रेड|Bread|bread|pcs
+मैगी|Instant Noodles|maggi noodles|pcs
+सेवई|Vermicelli|sewai vermicelli|kg
+मुरमुरा|Puffed Rice|murmura|kg
+चिप्स|Chips|chips|pcs
+टॉफी|Toffee|toffee candy|pcs
+अचार|Pickle|achar|kg
+शहद|Honey|shahad|kg
+जैम|Jam|jam|pcs
+सॉस|Sauce|sauce ketchup|pcs
+सिरका|Vinegar|sirka|ltr
+बेकिंग सोडा|Baking Soda|soda|kg
+कस्टर्ड पाउडर|Custard Powder|custard|kg
+नहाने का साबुन|Bath Soap|sabun soap|pcs
+कपड़े का साबुन|Washing Soap|kapde sabun|pcs
+डिटर्जेंट पाउडर|Detergent Powder|surf detergent|kg
+बर्तन साबुन|Dishwash Bar|bartan sabun|pcs
+शैम्पू|Shampoo|shampoo|pcs
+तेल बाल|Hair Oil|hair oil|pcs
+टूथपेस्ट|Toothpaste|toothpaste manjan|pcs
+टूथब्रश|Toothbrush|brush|pcs
+फिनाइल|Phenyl|phenyl|ltr
+अगरबत्ती|Incense Sticks|agarbatti|pcs
+माचिस|Matchbox|machis|pcs
+मोमबत्ती|Candle|mombatti|pcs
+कपूर|Camphor|kapoor|kg
+सरसों|Mustard Seed|sarson|kg
+तिल|Sesame|til|kg
+अलसी|Flax Seed|alsi|kg
+खसखस|Poppy Seed|khaskhas|kg
+सूरजमुखी बीज|Sunflower Seed|surajmukhi|kg
+मिश्री|Rock Sugar|mishri|kg
+बूरा|Powdered Sugar|boora|kg
+सुपारी|Betel Nut|supari|kg
+पान मसाला|Pan Masala|pan masala|pcs
+सिगरेट|Cigarette|cigarette|pcs
+बीड़ी|Beedi|beedi|pcs
+गुटखा|Gutkha|gutkha|pcs
+प्लास्टिक थैली|Plastic Bag|thaili polythene|pcs
+अंडा|Egg|anda egg|pcs
+नमक पैकेट|Packet Salt|namak packet|pcs
+ओआरएस|ORS|ors|pcs
+सादा पानी बोतल|Water Bottle|pani bottle|pcs
+कोल्ड ड्रिंक|Cold Drink|cold drink|pcs
+बालूशाही|Balushahi|balushahi|kg
+लड्डू|Laddu|laddu|kg
+बर्फी|Barfi|barfi|kg
+रसगुल्ला|Rasgulla|rasgulla|pcs
+गुलाब जामुन|Gulab Jamun|gulab jamun|pcs
+सेवइयां|Seviyan|seviyan|kg
+आटा चक्की|Chakki Atta|chakki atta|kg
+मुरब्बा|Murabba|murabba|kg
+सत्तू|Sattu|sattu|kg
+अरारोट|Arrowroot|ararot|kg
+कॉर्न फ्लोर|Corn Flour|corn flour|kg`;
+function catalogItems() {
+  return CATALOG.trim().split('\n').map(l => {
+    const [nameHi, nameEn, alias, unit] = l.split('|');
+    return { nameHi, nameEn, alias, unit: unit === 'pcs' ? 'pcs' : (unit === 'ltr' ? 'ltr' : 'kg') };
+  });
+}
+
 /* ---------------- pricing engine (unit-tested) ---------------- */
+// Catalogue items arrive with no rate. They must be storable and searchable
+// without ever reaching the engine, which would divide by zero.
+const hasRate = it => !!it && Array.isArray(it.slabs) && it.slabs.some(x => x.rate > 0);
 const unitSize = it => it.unit === 'pcs' ? 1 : 1000;
-const qLabel = it => it.unit === 'pcs' ? 'नग' : 'g';
-const rateLabel = it => it.unit === 'pcs' ? '/नग' : '/kg';
+const qLabel = it => it.unit === 'pcs' ? 'नग' : (it.unit === 'ltr' ? 'ml' : 'g');
+const rateLabel = it => it.unit === 'pcs' ? '/नग' : (it.unit === 'ltr' ? '/लीटर' : '/kg');
 
 function normSlabs(slabs) {
   const s = (slabs || [])
@@ -371,13 +577,13 @@ function normSlabs(slabs) {
 }
 function amountToQty(it, amount) {
   const U = unitSize(it), s = it.slabs;
-  if (!(amount > 0) || !s.length) return null;
+  if (!(amount > 0) || !hasRate(it)) return null;
   const rows = s.map(sl => { const q = (amount / sl.rate) * U; return { slab: sl, qty: q, ok: q >= sl.minQ - 1e-9 }; });
   return { chosen: rows.find(r => r.ok) || rows[rows.length - 1], rows };
 }
 function qtyToAmount(it, qty) {
   const U = unitSize(it), s = it.slabs;
-  if (!(qty > 0) || !s.length) return null;
+  if (!(qty > 0) || !hasRate(it)) return null;
   const rows = s.map(sl => ({ slab: sl, amount: (qty / U) * sl.rate, ok: qty >= sl.minQ - 1e-9 }));
   return { chosen: rows.find(r => r.ok) || rows[rows.length - 1], rows };
 }
@@ -400,17 +606,19 @@ const money = n => {
 
 function qtyText(it, q) {
   if (it.unit === 'pcs') return { n: String(Math.floor(q)), u: 'नग' };
-  if (q >= 1000) { const kg = q / 1000; return { n: (Math.round(kg * 1000) / 1000).toString(), u: 'kg' }; }
-  return { n: String(Math.round(q)), u: 'g' };
+  const big = it.unit === 'ltr' ? 'L' : 'kg', small = it.unit === 'ltr' ? 'ml' : 'g';
+  if (q >= 1000) return { n: (Math.round(q) / 1000).toString(), u: big };
+  return { n: String(Math.round(q)), u: small };
 }
 function slabName(it, sl, idx) {
   if (sl.minQ === 0) return idx === 0 ? 'कोई भी मात्रा' : 'इससे कम';
   if (it.unit === 'pcs') return sl.minQ + ' नग या ज़्यादा';
-  return (sl.minQ >= 1000 ? (sl.minQ / 1000) + ' किलो' : sl.minQ + ' ग्राम') + ' या ज़्यादा';
+  const big = it.unit === 'ltr' ? ' लीटर' : ' किलो', small = it.unit === 'ltr' ? ' मिली' : ' ग्राम';
+  return (sl.minQ >= 1000 ? (sl.minQ / 1000) + big : sl.minQ + small) + ' या ज़्यादा';
 }
 
 /* ---------------- state ---------------- */
-const S = { items: [], sel: null, mode: 'amt', round: 5, screen: 'calc', scan: [] };
+const S = { items: [], sel: null, quick: false, mode: 'amt', round: 5, screen: 'calc', scan: [] };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -424,34 +632,70 @@ function toast(msg) {
   toastT = setTimeout(() => t.style.display = 'none', 2600);
 }
 
+// "कब बदला" — rate lists go stale, so every item carries its own age.
+function ago(ts) {
+  if (!ts) return '';
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return 'अभी';
+  if (m < 60) return m + ' मिनट पहले';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' घंटे पहले';
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'कल';
+  if (d < 30) return d + ' दिन पहले';
+  const mo = Math.floor(d / 30);
+  return mo < 12 ? mo + ' महीने पहले' : Math.floor(mo / 12) + ' साल पहले';
+}
+const STALE_DAYS = 30;
+const isStale = ts => ts && (Date.now() - ts) > STALE_DAYS * 864e5;
+
 const live = () => S.items.filter(i => !i.deleted);
+const setCount = () => { $('syncTxt').textContent = live().length ? live().length + ' सामान' : ''; };
+
+// Bulk path. saveItem() re-renders the whole list; calling it 141 times in a
+// loop re-rendered 141 times and took seconds on a phone. This writes them all,
+// then renders once.
+async function saveItems(list) {
+  for (const it of list) { it.updatedAt = Date.now(); it.dirty = 1; reindex(it); await DB.put(it); }
+  const byId = new Map(S.items.map(x => [x.id, x]));
+  for (const it of list) { if (byId.has(it.id)) S.items[S.items.indexOf(byId.get(it.id))] = it; else S.items.push(it); }
+  renderItems(); renderCalc();
+}
 
 async function saveItem(it, push = true) {
-  it.updatedAt = Date.now();
+  it.updatedAt = Date.now(); reindex(it);
   if (push) it.dirty = 1;
   await DB.put(it);
   const i = S.items.findIndex(x => x.id === it.id);
   if (i < 0) S.items.push(it); else S.items[i] = it;
   renderItems(); renderCalc();
-  if (push) Cloud.pushSoon();
 }
 
 /* ---------------- search ---------------- */
 const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+// Haystacks are normalised once per item, not on every keystroke. At 5,000
+// items that is ~10x faster, which matters on the phones this targets.
+function reindex(it) {
+  it._s = [norm(it.nameHi), norm(it.nameEn), norm(it.alias)].filter(Boolean);
+  return it;
+}
 function score(it, q) {
-  if (!q) return 0;
-  const hay = [it.nameHi, it.nameEn, it.alias].map(norm);
+  if (!it._s) reindex(it);
   let best = -1;
-  hay.forEach(h => {
-    if (!h) return;
-    if (h === q) best = Math.max(best, 100);
-    else if (h.startsWith(q)) best = Math.max(best, 80);
-    else if (h.includes(q)) best = Math.max(best, 55);
-  });
+  for (const h of it._s) {
+    if (h === q) return 100;
+    if (h.startsWith(q)) { if (best < 80) best = 80; }
+    else if (best < 55 && h.includes(q)) best = 55;
+  }
   return best;
 }
-const search = q => { const n = norm(q); if (!n) return live().slice(0, 8);
-  return live().map(i => ({ i, s: score(i, n) })).filter(x => x.s >= 0).sort((a, b) => b.s - a.s).slice(0, 8).map(x => x.i); };
+const search = q => {
+  const n = norm(q); const all = live();
+  if (!n) return all.slice(0, 8);
+  const hits = [];
+  for (const i of all) { const sc = score(i, n); if (sc >= 0) hits.push({ i, s: sc }); }
+  return hits.sort((a, b) => b.s - a.s).slice(0, 8).map(x => x.i);
+};
 
 /* ---------------- calculator screen ---------------- */
 function renderSugs(list, show) {
@@ -459,32 +703,25 @@ function renderSugs(list, show) {
   if (!show || !list.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
   box.classList.remove('hidden');
   box.innerHTML = list.map(i =>
-    `<button class="sug" data-id="${i.id}"><b>${esc(i.nameHi || i.nameEn)}</b><span>${esc(i.nameEn || '')}</span><em>${money(kgRate(i))}${rateLabel(i)}</em></button>`
+    `<button class="sug" data-id="${i.id}"><b>${esc(i.nameHi || i.nameEn)}</b><span>${esc(i.nameEn || '')}</span><em>${hasRate(i) ? money(kgRate(i)) + rateLabel(i) : 'रेट नहीं'}</em></button>`
   ).join('');
 }
 function selectItem(it) {
-  S.sel = it; $('q').value = '';
+  S.sel = it; S.quick = false; $('quickBar').classList.add('hidden'); showQuickBtn(); $('q').value = '';
   renderSugs([], false);
   $('chip').classList.remove('hidden');
   $('chipHi').textContent = it.nameHi || it.nameEn;
   $('chipEn').textContent = it.nameEn || '';
-  $('chipRate').textContent = money(kgRate(it)) + rateLabel(it);
+  $('chipRate').textContent = hasRate(it) ? money(kgRate(it)) + rateLabel(it) : 'रेट नहीं';
+  $('chipAge').textContent = hasRate(it) ? 'रेट ' + ago(it.updatedAt) + ' बदला' + (isStale(it.updatedAt) ? ' ⚠' : '') : 'इस सामान का रेट अभी नहीं लिखा';
   renderCalc(); $('val').focus();
-}
-// same as selectItem but without stealing focus or clearing the search box —
-// used when a remote edit updates the item that is already on screen
-function selectItemQuiet(it) {
-  S.sel = it;
-  $('chipHi').textContent = it.nameHi || it.nameEn;
-  $('chipEn').textContent = it.nameEn || '';
-  $('chipRate').textContent = money(kgRate(it)) + rateLabel(it);
 }
 function setMode(m) {
   S.mode = m;
   $('mAmt').setAttribute('aria-pressed', m === 'amt');
   $('mQty').setAttribute('aria-pressed', m === 'qty');
   $('cur').textContent = m === 'amt' ? '₹' : '⚖';
-  $('val').placeholder = m === 'amt' ? '0' : (S.sel && S.sel.unit === 'pcs' ? 'नग' : 'ग्राम');
+  $('val').placeholder = m === 'amt' ? '0' : (S.sel ? (S.sel.unit === 'pcs' ? 'नग' : S.sel.unit === 'ltr' ? 'मिली' : 'ग्राम') : 'ग्राम');
   renderQuick(); renderCalc();
 }
 function renderQuick() {
@@ -493,10 +730,18 @@ function renderQuick() {
 }
 function renderCalc() {
   const out = $('out'), tbl = $('slabTbl');
-  const it = S.sel, v = parseFloat(String($('val').value).replace(/[^0-9.]/g, ''));
+  const it = curItem(), v = parseFloat(String($('val').value).replace(/[^0-9.]/g, ''));
+  if (it && !S.quick && !hasRate(it)) {
+    out.classList.add('empty'); $('outNum').textContent = '—';
+    $('outGive').textContent = 'रेट चाहिए';
+    $('outSub').innerHTML = 'इस सामान का रेट लिखें, तभी हिसाब बनेगा। <button id="goRate" style="text-decoration:underline;font-weight:700;color:var(--green)">अभी लिखें</button>';
+    $('outBand').classList.add('hidden'); tbl.classList.add('hidden');
+    const g = $('goRate'); if (g) g.onclick = () => openEditor(S.items.find(i => i.id === it.id));
+    return;
+  }
   if (!it || !(v > 0)) {
     out.classList.add('empty'); $('outNum').textContent = '—';
-    $('outSub').textContent = it ? 'रकम लिखें' : 'ऊपर सामान चुनें और रकम लिखें';
+    $('outSub').textContent = it ? 'रकम लिखें' : (S.quick ? 'ऊपर रेट डालें, फिर रकम लिखें' : 'ऊपर सामान चुनें, या सीधा रेट डालें');
     $('outGive').textContent = 'ग्राहक को दें'; $('outBand').classList.add('hidden');
     tbl.classList.add('hidden'); return;
   }
@@ -545,17 +790,23 @@ function renderItems() {
   const el = $('itemList');
   if (!list.length) {
     el.innerHTML = `<div class="empty-state"><b>${live().length ? 'कुछ नहीं मिला' : 'अभी कोई सामान नहीं है'}</b>
-      ${live().length ? 'दूसरा नाम लिखकर देखें।' : '“+ नया” दबाकर पहला सामान जोड़ें, या रेट लिस्ट की फोटो स्कैन करें।'}</div>`;
-    $('statTxt').textContent = live().length + ' सामान इस फ़ोन में सेव हैं।';
+      ${live().length ? 'दूसरा नाम लिखकर देखें।' : 'नीचे से दुकान की आम लिस्ट भर लें, फिर सिर्फ़ अपने रेट लिखें।'}
+      ${live().length ? '' : '<button class="btn full" id="loadCat" style="margin-top:18px">दुकान की आम लिस्ट भरें (' + catalogItems().length + ' सामान)</button><p class="muted" style="margin-top:10px">रेट खाली रहेंगे — आप अपने रेट खुद लिखेंगे। जो सामान आप नहीं बेचते, उसे हटा दें।</p>'}</div>`;
+    setCount(); $('statTxt').textContent = live().length + ' सामान इस फ़ोन में सेव हैं।';
     return;
   }
   el.innerHTML = list.map(i => `<div class="item">
     <div class="nm"><b>${esc(i.nameHi || i.nameEn)}</b><span>${esc(i.nameEn || '')}</span>
-      <div class="tiers">${i.slabs.map((s, ix) => `<span class="tier">${esc(slabName(i, s, ix))} · ${money(s.rate)}</span>`).join('')}</div>
+      <div class="tiers">${hasRate(i) ? i.slabs.map((s, ix) => `<span class="tier">${esc(slabName(i, s, ix))} · ${money(s.rate)}</span>`).join('') : ''}</div>
     </div>
-    <div class="pr"><b>${money(kgRate(i))}</b><span>प्रति ${i.unit === 'pcs' ? 'नग' : 'किलो'}</span></div>
+    <div class="pr">${hasRate(i)
+      ? `<b>${money(kgRate(i))}</b><span>प्रति ${i.unit === 'pcs' ? 'नग' : (i.unit === 'ltr' ? 'लीटर' : 'किलो')}</span>
+         <span class="age${isStale(i.updatedAt) ? ' old' : ''}">${esc(ago(i.updatedAt))}</span>`
+      : `<b class="norate">रेट लिखें</b>`}</div>
     <button class="ed" data-ed="${i.id}" aria-label="बदलें">✎</button></div>`).join('');
-  $('statTxt').textContent = live().length + ' सामान इस फ़ोन में सेव हैं।';
+  const pending = live().filter(i => !hasRate(i)).length;
+  setCount();
+  $('statTxt').textContent = live().length + ' सामान इस फ़ोन में सेव हैं।' + (pending ? ' ' + pending + ' के रेट बाकी हैं।' : '');
 }
 
 /* ---------------- add / edit sheet ---------------- */
@@ -575,6 +826,7 @@ function openEditor(it) {
       <label class="lbl" for="e4">कैसे बिकता है</label>
       <select id="e4" class="field" style="margin-bottom:18px">
         <option value="kg"${m.unit === 'kg' ? ' selected' : ''}>तौल कर (किलो/ग्राम)</option>
+        <option value="ltr"${m.unit === 'ltr' ? ' selected' : ''}>नापकर (लीटर/मिली)</option>
         <option value="pcs"${m.unit === 'pcs' ? ' selected' : ''}>गिनकर (नग)</option>
       </select>
 
@@ -593,7 +845,7 @@ function openEditor(it) {
   };
   function tierRow(s, i, mm) {
     const last = i === mm.slabs.length - 1;
-    const unitTxt = mm.unit === 'pcs' ? 'नग' : 'ग्राम';
+    const unitTxt = mm.unit === 'pcs' ? 'नग' : (mm.unit === 'ltr' ? 'मिली' : 'ग्राम');
     return `<div class="tierrow">
       ${last
         ? `<span class="fix">${mm.slabs.length === 1 ? 'कोई भी मात्रा' : 'इससे कम'}</span>`
@@ -633,7 +885,26 @@ function openEditor(it) {
   }
   draw();
 }
-function clearSel() { S.sel = null; $('chip').classList.add('hidden'); $('val').value = ''; renderCalc(); }
+function clearSel() { S.sel = null; $('chip').classList.add('hidden'); $('val').value = ''; showQuickBtn(); renderCalc(); }
+
+/* Quick mode: a rate typed straight in, no saved item. Builds a throwaway
+   single-slab item so the same engine answers it — nothing is stored. */
+function quickItem() {
+  if (!S.quick) return null;
+  const r = parseFloat(String($('qRate').value).replace(/[^0-9.]/g, ''));
+  if (!(r > 0)) return null;
+  return { id: '__quick', nameHi: 'सीधा रेट', nameEn: '', alias: '', unit: $('qUnit').value,
+           slabs: [{ minQ: 0, rate: r }], updatedAt: 0, deleted: false };
+}
+const curItem = () => S.quick ? quickItem() : S.sel;
+function showQuickBtn() { $('quickBtn').classList.toggle('hidden', !!S.sel || !!S.quick); }
+function setQuick(on) {
+  S.quick = on;
+  if (on) { S.sel = null; $('chip').classList.add('hidden'); }
+  $('quickBar').classList.toggle('hidden', !on);
+  showQuickBtn(); renderCalc();
+  if (on) $('qRate').focus();
+}
 
 /* ---------------- voice ---------------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -752,17 +1023,28 @@ function exportJSON() {
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   toast('बैकअप फ़ाइल बन गई');
 }
+// File.text() is missing on older Android WebViews; fall back to FileReader.
+function readText(file) {
+  if (file.text) return file.text();
+  return new Promise((ok, no) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result));
+    r.onerror = () => no(new Error('read failed'));
+    r.readAsText(file);
+  });
+}
+
 async function importJSON(file) {
   try {
-    const d = JSON.parse(await file.text());
+    const d = JSON.parse(await readText(file));
     if (!Array.isArray(d.items)) throw 0;
     let n = 0;
     for (const raw of d.items) {
       if (!raw || !raw.id) continue;
       const it = { id: raw.id, nameHi: raw.nameHi || '', nameEn: raw.nameEn || '', alias: raw.alias || '',
-        unit: raw.unit === 'pcs' ? 'pcs' : 'kg', slabs: normSlabs(raw.slabs), deleted: !!raw.deleted,
+        unit: ['pcs', 'ltr'].includes(raw.unit) ? raw.unit : 'kg', slabs: normSlabs(raw.slabs), deleted: !!raw.deleted,
         updatedAt: raw.updatedAt || Date.now(), dirty: 1 };
-      if (!it.slabs.length) continue;
+      if (!it.slabs.length) it.slabs = [{ minQ: 0, rate: 0 }];   // rate not set yet
       const old = S.items.find(x => x.id === it.id);
       if (old && old.updatedAt > it.updatedAt) continue;   // keep the newer copy
       await DB.put(it);
@@ -770,136 +1052,11 @@ async function importJSON(file) {
       if (ix < 0) S.items.push(it); else S.items[ix] = it;
       n++;
     }
-    renderItems(); renderCalc(); Cloud.pushSoon();
+    renderItems(); renderCalc();
     toast(n + ' सामान चढ़ गए');
   } catch (e) { toast('फ़ाइल सही नहीं है'); }
 }
 
-/* ---------------- cloud sync (optional Firestore, realtime) ----------------
-   Design notes:
-   - One onSnapshot listener per session. Firestore pushes only the documents
-     that changed (docChanges), so an idle phone costs nothing and a rate edit
-     on phone A lands on phone B in about a second.
-   - persistentLocalCache gives us Firestore's own durable write queue. Edits
-     made with no network are held by the SDK and replay on reconnect, across
-     app restarts.
-   - No "last synced at" timestamp anywhere. The old version compared the
-     server's updatedAt against this phone's clock; if the clock ran fast it
-     skipped every later change permanently. The listener has no such window.
-   - updatedAt is still used to settle a genuine conflict (same item edited on
-     two phones). There the later clock wins, which is last-write-wins and is
-     as good as it gets without a server.
---------------------------------------------------------------------------- */
-const Cloud = (() => {
-  let app = null, auth = null, fs = null, user = null, unsub = null, timer = null;
-  let isLive = false, cached = true;
-  const M = {};                 // firebase modular fns
-  const inflight = new Set();   // ids currently being written, so we never double-send
-
-  function status(txt, cls) { $('syncTxt').textContent = txt; $('syncDot').className = 'dot' + (cls ? ' ' + cls : ''); }
-
-  function refresh() {
-    if (!user) return status('लोकल', '');
-    const waiting = S.items.filter(x => x.dirty).length;
-    if (!navigator.onLine) return status(waiting ? 'ऑफ़लाइन · ' + waiting : 'ऑफ़लाइन', 'err');
-    if (waiting) return status('भेज रहे… ' + waiting, 'on');
-    status(isLive && !cached ? 'क्लाउड · लाइव' : 'क्लाउड', 'on');
-  }
-
-  async function boot(c) {
-    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
-    const [a, au, fst] = await Promise.all([
-      import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')
-    ]);
-    Object.assign(M, a, au, fst);
-    app = (M.getApps && M.getApps().length) ? M.getApp() : M.initializeApp(c);
-    auth = M.getAuth(app);
-    try {
-      fs = M.initializeFirestore(app, {
-        localCache: M.persistentLocalCache({ tabManager: M.persistentMultipleTabManager() })
-      });
-    } catch (e) {                       // already initialised, or storage blocked
-      fs = M.getFirestore(app);
-    }
-    M.onAuthStateChanged(auth, u => {
-      user = u; stopListen();
-      if (u) { $('fbMsg').textContent = 'लॉगिन: ' + u.email; listen(); pushDirty(); }
-      else { $('fbMsg').textContent = 'लॉगिन नहीं है।'; }
-      refresh();
-    });
-    $('fbAuth').classList.remove('hidden');
-  }
-
-  const col = () => M.collection(fs, 'users', user.uid, 'items');
-
-  function stopListen() { if (unsub) { try { unsub(); } catch (e) {} unsub = null; } isLive = false; }
-
-  /* realtime: attaches on login and on app open, stays attached */
-  function listen() {
-    if (!fs || !user || unsub) return;
-    unsub = M.onSnapshot(col(),
-      snap => {
-        isLive = true; cached = snap.metadata.fromCache;
-        let n = 0;
-        snap.docChanges().forEach(ch => {
-          const r = ch.doc.data();
-          if (!r || typeof r.updatedAt !== 'number') return;
-          const it = {
-            id: ch.doc.id, nameHi: r.nameHi || '', nameEn: r.nameEn || '', alias: r.alias || '',
-            unit: r.unit === 'pcs' ? 'pcs' : 'kg', slabs: normSlabs(r.slabs),
-            deleted: !!r.deleted, updatedAt: r.updatedAt, dirty: 0
-          };
-          if (!it.slabs.length) return;
-          const ix = S.items.findIndex(x => x.id === it.id);
-          if (ix < 0) { S.items.push(it); DB.put(it); n++; }
-          else if (S.items[ix].updatedAt < it.updatedAt) { S.items[ix] = it; DB.put(it); n++; }
-          // local copy is newer or equal -> keep it; our own push will win
-        });
-        if (n) {
-          renderItems();
-          if (S.sel) {
-            const cur = S.items.find(i => i.id === S.sel.id);
-            if (!cur || cur.deleted) clearSel(); else selectItemQuiet(cur);
-          }
-          renderCalc();
-          if (!snap.metadata.hasPendingWrites) toast(n + ' अपडेट आए');
-        }
-        refresh();
-      },
-      err => {
-        isLive = false; status('सिंक रुका', 'err');
-        $('fbMsg').textContent = 'सिंक नहीं हुआ: ' + (err.code || err.message) +
-          (String(err.code).includes('permission') ? ' — Firestore Rules पब्लिश करें' : '');
-      });
-  }
-
-  /* push: never awaited. Offline, setDoc does not settle until the SDK
-     reaches the server, so awaiting it would freeze the save button. */
-  function pushDirty() {
-    if (!fs || !user) return refresh();
-    S.items.filter(x => x.dirty && !inflight.has(x.id)).forEach(it => {
-      inflight.add(it.id);
-      const { dirty, ...doc } = it;
-      M.setDoc(M.doc(col(), it.id), doc)
-        .then(() => { it.dirty = 0; DB.put(it); })
-        .catch(e => { $('fbMsg').textContent = 'भेजा नहीं जा सका: ' + (e.code || e.message); })
-        .finally(() => { inflight.delete(it.id); refresh(); });
-    });
-    refresh();
-  }
-
-  function pushSoon() { clearTimeout(timer); timer = setTimeout(pushDirty, 800); }
-  function sync() { if (!user) return toast('पहले लॉगिन करें'); listen(); pushDirty(); toast('सिंक चालू है'); }
-
-  async function login(email, pass) {
-    if (!auth) return toast('पहले config सेव करें');
-    try { await M.signInWithEmailAndPassword(auth, email, pass); toast('लॉगिन हो गया'); }
-    catch (e) { $('fbMsg').textContent = 'लॉगिन नहीं हुआ: ' + (e.code || e.message); }
-  }
-  async function logout() { stopListen(); if (auth) { await M.signOut(auth); toast('लॉगआउट'); } }
-
-  return { boot, login, logout, sync, pushSoon, status, refresh, get on() { return !!user; } };
-})();
 
 /* ---------------- screens ---------------- */
 function show(t) {
@@ -922,6 +1079,16 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.pick')) renderSugs([], false);
 });
 $('chipX').onclick = clearSel;
+$('quickBtn').onclick = () => setQuick(true);
+$('quickX').onclick = () => { setQuick(false); $('qRate').value = ''; };
+$('qRate').addEventListener('input', renderCalc);
+$('qUnit').addEventListener('change', () => { setMode(S.mode); renderCalc(); });
+$('qSave').onclick = () => {
+  const q = quickItem();
+  if (!q) return toast('पहले रेट डालें');
+  openEditor({ id: uid(), nameHi: '', nameEn: '', alias: '', unit: q.unit,
+               slabs: [{ minQ: 0, rate: q.slabs[0].rate }], deleted: false });
+};
 $('mic').onclick = startVoice;
 $('mAmt').onclick = () => setMode('amt');
 $('mQty').onclick = () => setMode('qty');
@@ -933,6 +1100,30 @@ $('quick').addEventListener('click', e => {
 
 $('iq').addEventListener('input', renderItems);
 $('addNew').onclick = () => openEditor(null);
+$('showSample').onclick = () => $('sampleBox').classList.toggle('hidden');
+
+let catBusy = false;
+async function loadCatalog() {
+  if (catBusy) return;                       // a second tap must not duplicate the list
+  catBusy = true;
+  try {
+    const have = new Set(live().flatMap(i => [norm(i.nameHi), norm(i.nameEn)]).filter(Boolean));
+    const batch = [];
+    for (const c of catalogItems()) {
+      const hi = norm(c.nameHi), en = norm(c.nameEn);
+      if (have.has(hi) || have.has(en)) continue;
+      have.add(hi); have.add(en);            // guard against duplicates inside the catalogue too
+      batch.push({ id: uid(), nameHi: c.nameHi, nameEn: c.nameEn, alias: c.alias || '',
+        unit: c.unit, slabs: [{ minQ: 0, rate: 0 }], deleted: false });
+    }
+    if (batch.length) await saveItems(batch);
+    toast(batch.length ? batch.length + ' सामान जुड़ गए — अब रेट लिखें' : 'सब पहले से मौजूद हैं');
+    show('items');
+  } finally { catBusy = false; }
+}
+document.addEventListener('click', e => {
+  if (e.target.id === 'loadCat' || e.target.id === 'loadCat2') loadCatalog();
+});
 $('itemList').addEventListener('click', e => {
   const b = e.target.closest('[data-ed]'); if (!b) return;
   openEditor(S.items.find(i => i.id === b.dataset.ed));
@@ -962,46 +1153,37 @@ $('expBtn').onclick = exportJSON;
 $('impBtn').onclick = () => $('impFile').click();
 $('impFile').addEventListener('change', e => { if (e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ''; });
 $('wipe').onclick = async () => {
-  const msg = Cloud.on
-    ? 'इस फ़ोन का सारा सामान मिट जाएगा — लेकिन क्लाउड सिंक चालू है, इसलिए सब वापस आ जाएगा। पूरा मिटाना हो तो पहले लॉगआउट करें। पहले बैकअप निकाल लें। मिटाना है?'
-    : 'इस फ़ोन का सारा सामान मिट जाएगा। पहले बैकअप निकाल लें। मिटाना है?';
-  if (!confirm(msg)) return;
-  await DB.clear(); S.items = []; clearSel(); renderItems(); Cloud.refresh(); toast('मिटा दिया');
+  if (!confirm('इस फ़ोन का सारा सामान मिट जाएगा। पहले बैकअप निकाल लें। मिटाना है?')) return;
+  await DB.clear(); S.items = []; clearSel(); renderItems(); toast('मिटा दिया');
 };
-/* The Firebase console hands out JavaScript, not JSON: a leading comment,
-   `const firebaseConfig = {`, unquoted keys, a trailing semicolon. Accept that
-   verbatim rather than making the shopkeeper hand-convert it. */
-function parseFbConfig(raw) {
-  let t = String(raw).trim();
-  t = t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');   // comments
-  t = t.replace(/^[^{]*?(?=\{)/, '');                                    // const x = ... up to the brace
-  t = t.replace(/;[\s]*$/, '').trim();                                    // trailing semicolon
-  const open = t.indexOf('{'), close = t.lastIndexOf('}');
-  if (open < 0 || close < open) throw new Error('no object');
-  t = t.slice(open, close + 1);
-  t = t.replace(/'/g, '"');                                              // single -> double quotes
-  t = t.replace(/,(\s*[}\]])/g, '$1');                                    // trailing commas
-  t = t.replace(/([{,]\s*)([A-Za-z_$][\w$]*)(\s*:)/g, '$1"$2"$3');        // bare keys
-  return JSON.parse(t);
-}
 
-$('fbSave').onclick = async () => {
-  const raw = $('fbCfg').value.trim();
-  if (!raw) return toast('config खाली है');
-  try {
-    const c = parseFbConfig(raw);
-    if (!c.apiKey || !c.projectId) throw 0;
-    $('fbCfg').value = JSON.stringify(c, null, 1);
-    await DB.set('fbCfg', c);
-    $('fbMsg').textContent = 'Config सेव हो गया। अब ईमेल-पासवर्ड से लॉगिन करें।';
-    Cloud.boot(c).catch(() => $('fbMsg').textContent = 'Firebase लोड नहीं हुआ — इंटरनेट जाँचें।');
-  } catch (e) { toast('config पढ़ा नहीं गया — Firebase से पूरा firebaseConfig कॉपी करें'); }
-};
-$('fbLogin').onclick = () => Cloud.login($('fbEmail').value.trim(), $('fbPass').value);
-$('fbOut').onclick = () => Cloud.logout();
-$('fbSync').onclick = () => Cloud.sync();
-window.addEventListener('online', () => { Cloud.pushSoon(); Cloud.refresh(); });
-window.addEventListener('offline', () => Cloud.refresh());
+
+/* Build check. The single most common failure here is a phone still serving an
+   old cached copy, which looks exactly like a broken feature. Ask the service
+   worker which VERSION it cached and show it beside this file's BUILD; if the
+   two differ, the page is stale and nothing else is worth debugging. */
+function showBuild() {
+  const el = $('buildInfo');
+  if (!el) return;
+  const sw = navigator.serviceWorker;
+  el.style.color = '';
+  if (!sw || !sw.controller) {
+    el.textContent = 'ऐप: ' + BUILD + ' · कैश: कोई नहीं (ऑफ़लाइन नहीं चलेगा)';
+    return;
+  }
+  el.textContent = 'ऐप: ' + BUILD + ' · कैश: जाँच रहे…';
+  if (typeof MessageChannel === 'undefined') { el.textContent = 'ऐप: ' + BUILD; return; }
+  const ch = new MessageChannel();
+  const done = v => {
+    const same = v === BUILD;
+    el.textContent = 'ऐप: ' + BUILD + ' · कैश: ' + (v || '?') +
+      (same ? ' ✓' : ' ✕ — पुराना कैश चल रहा है, ब्राउज़र का कैश साफ़ करें');
+    el.style.color = same ? '' : 'var(--red)';
+  };
+  const t = setTimeout(() => done('?'), 1500);
+  ch.port1.onmessage = e => { clearTimeout(t); done(e.data && e.data.version); };
+  try { sw.controller.postMessage({ q: 'version' }, [ch.port2]); } catch (e) { clearTimeout(t); done('?'); }
+}
 
 /* ---------------- start ---------------- */
 (async function init() {
@@ -1011,12 +1193,16 @@ window.addEventListener('offline', () => Cloud.refresh());
   if (![1, 5, 10, 20, 25, 50].includes(S.round)) { S.round = 10; await DB.set('round', 10); }
   $('roundSel').value = String(S.round);
   setMode('amt'); renderItems(); renderCalc();
-  if (!navigator.onLine) Cloud.status('ऑफ़लाइन', 'err');
 
-  const c = await DB.get('fbCfg', null);
-  if (c) { $('fbCfg').value = JSON.stringify(c); Cloud.boot(c).catch(() => {}); }
-
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (!DB.durable) {
+    const w = $('warn');
+    w.classList.remove('hidden');
+    w.textContent = location.protocol === 'file:'
+      ? '⚠ यह फ़ाइल सीधे खोली गई है। सामान सेव नहीं होगा — ऐप बंद करते ही सब मिट जाएगा। दुकान के लिए वेबसाइट का लिंक खोलें।'
+      : '⚠ इस ब्राउज़र में सेव नहीं हो पा रहा (प्राइवेट मोड?). ऐप बंद करते ही सामान मिट जाएगा।';
+  }
+  showBuild();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(showBuild).catch(showBuild);
 })();
 </script>
 </body>
