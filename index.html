@@ -313,11 +313,12 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
     <h3>बोलकर हिसाब — कैसे बोलें</h3>
     <p>एक ही बार में सामान और रकम, दोनों बोलें। 🎤 दबाकर बोलिए:</p>
     <ul class="howto">
-      <li><b>“चीनी पचास रुपये”</b> — चीनी, ₹50 की तौल</li>
+      <li><b>“चीनी 50 रुपये”</b> — चीनी, ₹50 की तौल</li>
       <li><b>“आटा आधा किलो”</b> — आटे का 500 ग्राम का दाम</li>
-      <li><b>“काजू सौ रुपये”</b></li>
+      <li><b>“काजू 100 रुपये”</b></li>
       <li><b>“चावल पाव किलो”</b> — 250 ग्राम</li>
-      <li><b>“साबुन बारह नग”</b></li>
+      <li><b>“साबुन 12 नग”</b></li>
+      <li><b>“सरसों तेल 1 लीटर”</b></li>
       <li><b>“चीनी”</b> — सिर्फ़ नाम, रकम हाथ से लिखें</li>
     </ul>
     <p>पहले सामान का नाम, फिर नंबर, फिर <b>रुपये</b> / <b>किलो</b> / <b>ग्राम</b> / <b>नग</b>। “रुपये” कहेंगे तो तौल मिलेगी, “किलो/ग्राम” कहेंगे तो दाम मिलेगा। बोलने के लिए इंटरनेट चाहिए।</p>
@@ -347,7 +348,7 @@ textarea.field{height:120px;padding:12px;font-size:13px;font-family:ui-monospace
 
 <script>
 'use strict';
-const BUILD = 'ah-v11';   // must match VERSION in sw.js
+const BUILD = 'ah-v12';   // must match VERSION in sw.js
 /* =========================================================================
    अपनी हट्टी — offline-first shop calculator
    Storage: IndexedDB (local, always) + optional Firestore mirror (cloud)
@@ -926,38 +927,83 @@ function startVoice() {
 }
 // Token-based so a stop word can never eat part of a real item name
 // (a substring rule would turn "काजू" into nothing via "का").
-const MONEY_W = ['रुपये', 'रुपए', 'रुपया', 'रुपयों', 'रूपये', 'रुपय', 'रूपए', 'rupees', 'rupee', 'rupaye', 'rupya', 'rs', 'rs.', '₹'];
-const KG_W = ['किलो', 'किलोग्राम', 'kilo', 'kilos', 'kg', 'kgs', 'kilogram'];
+const MONEY_W = ['रुपये', 'रुपए', 'रुपया', 'रुपयों', 'रूपये', 'रुपय', 'रूपए', 'रुपैया', 'रूपया',
+  'rupees', 'rupee', 'rupaye', 'rupaya', 'rupay', 'rupya', 'rupaiya', 'rupiya', 'rs', 'inr', '₹'];
+const KG_W = ['किलो', 'किलोग्राम', 'kilo', 'kilos', 'kg', 'kgs', 'kilogram', 'kilograms'];
 const G_W = ['ग्राम', 'gram', 'grams', 'gm', 'gms', 'g'];
-const PCS_W = ['नग', 'पीस', 'piece', 'pieces', 'pcs', 'दाने'];
-const FILLER_W = ['का', 'के', 'की', 'को', 'भर', 'दे', 'दो', 'देना', 'दीजिए', 'दीजिये', 'चाहिए', 'give', 'me', 'of', 'ka', 'ke', 'ki'];
-const WORD_NUM = { 'आधा': .5, 'आधी': .5, 'आध': .5, 'half': .5, 'पाव': .25, 'paav': .25, 'सवा': 1.25, 'डेढ़': 1.5, 'डेढ': 1.5, 'ढाई': 2.5, 'पौन': .75, 'एक': 1, 'दो': 2, 'one': 1, 'two': 2 };
+const LTR_W = ['लीटर', 'litre', 'liter', 'litres', 'liters', 'ltr', 'l'];
+const ML_W = ['मिली', 'मिलीलीटर', 'ml', 'millilitre', 'milliliter'];
+const PCS_W = ['नग', 'पीस', 'piece', 'pieces', 'pcs', 'दाने', 'अदद'];
+const FILLER_W = ['का', 'के', 'की', 'को', 'भर', 'दे', 'दो', 'देना', 'दीजिए', 'दीजिये', 'चाहिए',
+  'give', 'me', 'of', 'for', 'ka', 'ke', 'ki', 'ko', 'wala', 'वाला', 'वाली'];
+// Fractions only make sense with a unit ("आधा किलो"), so they are read only
+// when one is present. Plain numerals are read anywhere.
+const FRACTION_W = { 'आधा': .5, 'आधी': .5, 'आध': .5, 'half': .5, 'पाव': .25, 'paav': .25, 'pav': .25,
+  'सवा': 1.25, 'डेढ़': 1.5, 'डेढ': 1.5, 'ढाई': 2.5, 'पौन': .75, 'एक': 1, 'one': 1, 'two': 2 };
+// Chrome usually transcribes spoken numbers as digits, but not always.
+// "दो" and "एक" are deliberately absent — they are also fillers ("दे दो").
+const NUM_W = { 'तीन': 3, 'चार': 4, 'पाँच': 5, 'पांच': 5, 'छह': 6, 'छः': 6, 'सात': 7, 'आठ': 8, 'नौ': 9,
+  'दस': 10, 'ग्यारह': 11, 'बारह': 12, 'पंद्रह': 15, 'बीस': 20, 'पच्चीस': 25, 'तीस': 30, 'चालीस': 40,
+  'पचास': 50, 'साठ': 60, 'सत्तर': 70, 'अस्सी': 80, 'नब्बे': 90, 'सौ': 100, 'दो सौ': 200, 'पांच सौ': 500,
+  'हज़ार': 1000, 'हजार': 1000 };
+const WORD_NUM = Object.assign({}, FRACTION_W, NUM_W);
 
-// "चीनी 50 रुपये" · "sugar 500 gram" · "आटा आधा किलो" · "chini"
+/* Speech recognition does NOT return tidy words. Chrome's hi-IN engine turns
+   "चीनी 50 रुपये" into "चीनी ₹50" — symbol welded to the digits. Splitting on
+   whitespace alone left "₹50", which is neither a number nor a stop word, so it
+   fell through into the item name and matched nothing. Normalise before
+   tokenising: Devanagari digits to ASCII, and a space at every digit/non-digit
+   boundary so "₹50", "50rs" and "500gm" all come apart. */
+const DEV_DIGITS = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+function voiceTokens(text) {
+  let t = norm(text)
+    .replace(/[०-९]/g, d => DEV_DIGITS[d])
+    .replace(/[,।|]/g, ' ')
+    .replace(/\/-/g, ' ')
+    .replace(/[₹$]/g, ' ₹ ')
+    .replace(/(\d)([^\d.\s])/g, '$1 $2')
+    .replace(/([^\d\s.])(\d)/g, '$1 $2')
+    .replace(/\.(?!\d)/g, ' ');
+  return t.split(/\s+/).filter(Boolean);
+}
+const isNum = t => /^\d+(\.\d+)?$/.test(t);
+
+// "चीनी 50 रुपये" · "चीनी ₹50" · "sugar 500 gram" · "आटा आधा किलो" · "chini"
 function applyVoice(text) {
-  const toks = norm(text).replace(/[,।]/g, ' ').split(/\s+/).filter(Boolean);
-  const has = (list) => toks.some(t => list.includes(t));
-  const isMoney = has(MONEY_W), isKg = has(KG_W), isG = has(G_W), isPcs = has(PCS_W);
+  const toks = voiceTokens(text);
+  const has = list => toks.some(t => list.includes(t));
+  const isMoney = has(MONEY_W), isKg = has(KG_W), isG = has(G_W),
+        isLtr = has(LTR_W), isMl = has(ML_W), isPcs = has(PCS_W);
+  const isQty = isKg || isG || isLtr || isMl || isPcs;
 
   let n = null;
   for (const t of toks) {
-    if (/^\d+(\.\d+)?$/.test(t)) { n = parseFloat(t); break; }
-    if (n === null && WORD_NUM[t] !== undefined && (isKg || isG || isPcs)) n = WORD_NUM[t];
+    if (isNum(t)) { n = parseFloat(t); break; }
+    if (n !== null) continue;
+    if (NUM_W[t] !== undefined) n = NUM_W[t];
+    else if (isQty && FRACTION_W[t] !== undefined) n = FRACTION_W[t];
   }
 
-  const drop = new Set([...MONEY_W, ...KG_W, ...G_W, ...PCS_W, ...FILLER_W, ...Object.keys(WORD_NUM)]);
-  const name = toks.filter(t => !drop.has(t) && !/^\d+(\.\d+)?$/.test(t)).join(' ');
+  const drop = new Set([...MONEY_W, ...KG_W, ...G_W, ...LTR_W, ...ML_W, ...PCS_W,
+                        ...FILLER_W, ...Object.keys(WORD_NUM)]);
+  const words = toks.filter(t => !drop.has(t) && !isNum(t));
+  const name = words.join(' ');
 
-  if (name) { const hit = search(name)[0]; if (hit) selectItem(hit); }
+  // Whole phrase first; if that misses, try each word on its own, because one
+  // stray mis-heard syllable should not cost the shopkeeper the whole command.
+  let hit = name ? search(name)[0] : null;
+  if (!hit) for (const wd of words) { if (wd.length < 2) continue; const h = search(wd)[0]; if (h) { hit = h; break; } }
+  if (hit) selectItem(hit);
+
   if (!S.sel) {
     if (!name) return false;
     $('q').value = name; renderSugs(search(name), true);
     return true;
   }
-  if (n === null) return !!name;                       // just a name — item is selected, that's enough
+  if (n === null) return !!name;               // just a name — selecting it is enough
 
-  if (isMoney || (!isKg && !isG && !isPcs)) { setMode('amt'); $('val').value = String(n); }
-  else { setMode('qty'); $('val').value = String(isKg ? n * 1000 : n); }
+  if (isMoney || !isQty) { setMode('amt'); $('val').value = String(n); }
+  else { setMode('qty'); $('val').value = String(isKg || isLtr ? n * 1000 : n); }
   renderCalc();
   return true;
 }
